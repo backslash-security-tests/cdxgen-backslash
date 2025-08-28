@@ -1,0 +1,166 @@
+# Base-image
+FROM opensuse/tumbleweed:latest AS base
+
+ARG DOTNET_SDK_VERSION=9.0.100
+ARG GRADLE_VERSION=8.14.2
+ARG MAVEN_VERSION=4.0.0-rc-3
+ARG NPM_REPO
+ARG SBT_VERSION=1.11.2
+ARG SCALA_VERSION=3.7.1
+
+ENV CC=gcc \
+    DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+    DOTNET_GENERATE_ASPNET_CERTIFICATE=false \
+    DOTNET_NOLOGO=true \
+    DOTNET_ROOT=/usr/share/dotnet \
+    DOTNET_RUNNING_IN_CONTAINER=true \
+    DOTNET_SDK_VERSION=$DOTNET_SDK_VERSION \
+    DOTNET_USE_POLLING_FILE_WATCHER=false \
+    GRADLE_HOME="/opt/gradle/${GRADLE_VERSION}" \
+    GRADLE_VERSION=$GRADLE_VERSION \
+    LANG=en_US.UTF-8 \
+    LANGUAGE=en_US.UTF-8 \
+    LC_ALL=en_US.UTF-8 \
+    MAVEN_HOME="/opt/maven/${MAVEN_VERSION}" \
+    MAVEN_VERSION=$MAVEN_VERSION \
+    NUGET_XMLDOC_MODE=skip \
+    PYTHONPATH=/opt/pypi \
+    SBT_HOME="/opt/sbt/${SBT_VERSION}" \
+    SBT_VERSION=$SBT_VERSION \
+    SCALA_HOME="/opt/scala/${SCALA_VERSION}" \
+    SCALA_VERSION=$SCALA_VERSION
+ENV PATH=${PATH}:/usr/local/bin:${MAVEN_HOME}/bin:${GRADLE_HOME}/bin:${SCALA_HOME}/bin:${SBT_HOME}/bin:${PYTHONPATH}/bin:/usr/share/dotnet
+
+RUN set -e; \
+    if [ -n "$NPM_REPO" ]; then \
+      export COREPACK_NPM_REGISTRY=$NPM_REPO; \
+      echo -e "registry=$NPM_REPO\n@jsr:registry=$NPM_REPO" > $HOME/.npmrc; \
+    fi \
+ && ARCH_NAME="$(rpm --eval '%{_arch}')"; \
+    case "${ARCH_NAME##*-}" in \
+      'amd64' | 'x86_64') \
+        OS_ARCH_SUFFIX='x64'; \
+        GOBIN_VERSION='amd64'; \
+        ;; \
+      'aarch64' | 'arm64') \
+        OS_ARCH_SUFFIX='arm64'; \
+        GOBIN_VERSION='arm64'; \
+        ;; \
+      *) \
+        echo >&2 "error: unsupported architecture: '$ARCH_NAME'"; \
+        exit 1 \
+        ;; \
+    esac \
+ && zypper refresh \
+ && zypper \
+      --non-interactive \
+        dup \
+ && zypper \
+      --non-interactive \
+        install \
+        -l \
+        --no-recommends \
+          bzip2 \
+          cargo1.86 \
+          findutils \
+          gawk \
+          gcc14 \
+          gcc14-c++ \
+          gcc14-fortran \
+          git-core \
+          java-24-openjdk-devel \
+          libicu-devel \
+          make \
+          nodejs22 \
+          npm22 \
+          python312 \
+          python312-devel \
+          python312-pip \
+          rust1.86 \
+          unzip \
+          wget \
+          zip \
+ && update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-14 10 \
+ && update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 10 \
+ && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 10 \
+ && update-alternatives --install /usr/bin/gfortran gfortran /usr/bin/gfortran-14 10 \
+ && update-alternatives --install /usr/bin/python python /usr/bin/python3.12 10 \
+ && curl -s "https://get.sdkman.io" | bash \
+ && echo -e "sdkman_auto_answer=true\nsdkman_selfupdate_feature=false\nsdkman_auto_env=true\nsdkman_curl_connect_timeout=20\nsdkman_curl_max_time=0" \
+      >> $HOME/.sdkman/etc/config \
+ && source "$HOME/.sdkman/bin/sdkman-init.sh" \
+ && sdk install maven $MAVEN_VERSION \
+ && sdk install gradle $GRADLE_VERSION \
+ && sdk install scala $SCALA_VERSION \
+ && sdk install sbt $SBT_VERSION \
+ && sdk offline enable \
+ && mv /root/.sdkman/candidates/* /opt/ \
+ && rm -rf /root/.sdkman \
+ && curl -fSL --output dotnet.tar.gz \
+      https://dotnetcli.azureedge.net/dotnet/Sdk/$DOTNET_SDK_VERSION/dotnet-sdk-$DOTNET_SDK_VERSION-linux-${OS_ARCH_SUFFIX}.tar.gz \
+ && mkdir -p /usr/share/dotnet \
+ && tar -xf dotnet.tar.gz -C /usr/share/dotnet \
+ && rm dotnet.tar.gz \
+ && dotnet --list-sdks \
+ && mkdir ${PYTHONPATH} \
+ && python -m pip install \
+      --no-cache-dir \
+      --target ${PYTHONPATH} \
+      --upgrade \
+        atom-tools \
+        blint \
+        custom-json-diff \
+        pipenv \
+        poetry \
+        uv \
+ && node -v \
+ && npm -v \
+ && npm install -g corepack \
+ && poetry --version \
+ && pipenv --version \
+ && blint --help \
+ && gcc --version \
+ && curl -L --output /usr/bin/bazel \
+      https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-${GOBIN_VERSION} \
+ && chmod +x /usr/bin/bazel \
+ && bazel --version \
+ && rm -rf $HOME/.npmrc \
+ && zypper clean -a
+
+CMD ["/bin/bash"]
+
+
+
+# cdxgen-image
+FROM base AS cdxgen
+
+ENV CDXGEN_DEBUG_MODE=debug \
+    CDXGEN_IN_CONTAINER=true \
+    NODE_COMPILE_CACHE="/opt/cdxgen-node-cache" \
+    PATH=${PATH}:/opt/cdxgen/node_modules/.bin \
+    SCAN_DEBUG_MODE=debug
+
+COPY . /opt/cdxgen
+
+RUN set -e; \
+    if [ -n "$NPM_REPO" ]; then \
+      export COREPACK_NPM_REGISTRY=$NPM_REPO; \
+      echo -e "registry=$NPM_REPO\n@jsr:registry=$NPM_REPO" > $HOME/.npmrc; \
+    fi \
+ && cd /opt/cdxgen \
+ && corepack enable \
+ && corepack pnpm install \
+      --config.strict-dep-builds=true \
+      --frozen-lockfile \
+      --package-import-method copy \
+      --prod \
+ && corepack pnpm cache delete \
+ && mkdir -p ${NODE_COMPILE_CACHE} \
+ && node /opt/cdxgen/bin/cdxgen.js --help \
+ && rm -rf $HOME/.npmrc /root/.cache/node \
+ && zypper clean -a \
+ && chmod a-w -R /opt
+
+WORKDIR /app
+
+ENTRYPOINT ["node", "/opt/cdxgen/bin/cdxgen.js"]

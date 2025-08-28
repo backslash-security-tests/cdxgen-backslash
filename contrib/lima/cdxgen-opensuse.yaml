@@ -5,10 +5,11 @@ images:
 - location: "https://download.opensuse.org/distribution/leap/15.6/appliances/openSUSE-Leap-15.6-Minimal-VM.aarch64-Cloud.qcow2"
   arch: "aarch64"
 mounts:
+- location: "~"
 - location: "/tmp/cdxgen"
   writable: true
 containerd:
-  system: false
+  system: true
   user: true
 env:
   MAVEN_VERSION: 3.9.9
@@ -36,6 +37,7 @@ provision:
       gcc13 gcc13-c++ gcc13-fortran nodejs20 nodejs20-devel npm20 corepack20 \
       clang7 llvm7 llvm7-devel libcurl-devel libjpeg62-devel libmariadb-devel \
       postgresql-devel postgresql-server-devel libopenssl-devel libopenblas_pthreads-devel lapacke-devel
+    update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-13 10
     update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 10
     update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 10
     update-alternatives --install /usr/bin/gfortran gfortran /usr/bin/gfortran-13 10
@@ -47,9 +49,9 @@ provision:
   script: |
     #!/bin/bash
     set -e -o pipefail
-    export MAVEN_VERSION=3.9.9
-    export SBT_VERSION=1.10.10
-    export GRADLE_VERSION=8.12.1
+    export MAVEN_VERSION=3.9.10
+    export SBT_VERSION=1.11.2
+    export GRADLE_VERSION=8.14
     export MAVEN_HOME="/.sdkman/candidates/maven/${MAVEN_VERSION}"
     export GRADLE_HOME="/.sdkman/candidates/gradle/${GRADLE_VERSION}"
     export SBT_HOME="/.sdkman/candidates/sbt/${SBT_VERSION}"

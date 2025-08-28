@@ -1,0 +1,94 @@
+# Base-image
+FROM ruby:3.4.5-alpine AS base
+
+ARG NPM_REPO
+
+ENV PATH=${PATH}:/usr/local/bin \
+    PYTHONPATH=/opt/pypi
+
+RUN set -e; \
+    if [ -n "$NPM_REPO" ]; then \
+      export COREPACK_NPM_REGISTRY=$NPM_REPO; \
+      echo -e "registry=$NPM_REPO\n@jsr:registry=$NPM_REPO" > $HOME/.npmrc; \
+    fi \
+ && apk update \
+ && apk add --no-cache \
+      bash \
+      bzip2 \
+      curl \
+      gcc \
+      git \
+      g++ \
+      make \
+      musl-dev \
+      nodejs \
+      npm \
+      openjdk21 \
+      python3 \
+      python3-dev \
+      py3-pip \
+      py3-virtualenv \
+      tar \
+ && npm install -g corepack \
+ && /usr/bin/python --version \
+ && /usr/bin/python -m pip install \
+      --no-cache-dir \
+      --target ${PYTHONPATH} \
+      --upgrade \
+        atom-tools \
+ && node -v \
+ && npm -v \
+ && java -version \
+ && python3 --version \
+ && gem install bundler cocoapods \
+ && rm -rf $HOME/.npmrc /var/cache/apk/*
+
+
+
+# cdxgen-image
+FROM base AS cdxgen
+
+ENV CDXGEN_GEM_HOME="/tmp/gems" \
+    CDXGEN_IN_CONTAINER=true \
+    NODE_COMPILE_CACHE="/opt/cdxgen-node-cache" \
+    PATH=${PATH}:${PYTHONPATH}/bin:/opt/cdxgen/node_modules/.bin
+
+COPY . /opt/cdxgen
+
+RUN set -e; \
+    if [ -n "$NPM_REPO" ]; then \
+      export COREPACK_NPM_REGISTRY=$NPM_REPO; \
+      echo -e "registry=$NPM_REPO\n@jsr:registry=$NPM_REPO" > $HOME/.npmrc; \
+    fi \
+ && cd /opt/cdxgen \
+ && corepack enable \
+ && corepack pnpm install \
+      --config.strict-dep-builds=true \
+      --frozen-lockfile \
+      --package-import-method copy \
+      --prod \
+ && corepack pnpm cache delete \
+ && npm install -g --omit=dev @appthreat/atom-parsetools@1.0.4 \
+ && npm uninstall -g corepack \
+ && apk del \
+      bash \
+      curl \
+      gcc \
+      g++ \
+      make \
+      musl-dev \
+      npm \
+      python3-dev \
+      py3-pip \
+      py3-virtualenv \
+      tar \
+ && mkdir -p ${NODE_COMPILE_CACHE} \
+ && node /opt/cdxgen/bin/cdxgen.js --help \
+ && rbastgen --help \
+ && atom-tools --help \
+ && rm -rf $HOME/.npmrc /root/.cache/node ${CDXGEN_GEM_HOME}/* \
+ && chmod a-w -R /opt
+
+WORKDIR /app
+
+ENTRYPOINT ["node", "/opt/cdxgen/bin/cdxgen.js"]

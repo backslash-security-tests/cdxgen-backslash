@@ -1,30 +1,20 @@
-FROM almalinux:9.5-minimal
-
-LABEL maintainer="cyclonedx" \
-      org.opencontainers.image.authors="Prabhu Subramanian <prabhu@appthreat.com>" \
-      org.opencontainers.image.source="https://github.com/cyclonedx/cdxgen" \
-      org.opencontainers.image.url="https://github.com/cyclonedx/cdxgen" \
-      org.opencontainers.image.version="11.2.x" \
-      org.opencontainers.image.vendor="cyclonedx" \
-      org.opencontainers.image.licenses="Apache-2.0" \
-      org.opencontainers.image.title="cdxgen" \
-      org.opencontainers.image.description="Container image for cdxgen SBOM generator packing latest build tools." \
-      org.opencontainers.docker.cmd="docker run --rm -v /tmp:/tmp -p 9090:9090 -v $(pwd):/app:rw -t ghcr.io/cyclonedx/cdxgen -r /app --server"
+FROM ghcr.io/cyclonedx/cdxgen-ruby-builder:master AS base
 
 ARG SWIFT_SIGNING_KEY=52BB7E3DE28A71BE22EC05FFEF80A866B47A981F
 ARG SWIFT_PLATFORM=ubi9
-ARG SWIFT_BRANCH=swift-6.0.3-release
-ARG SWIFT_VERSION=swift-6.0.3-RELEASE
+ARG SWIFT_BRANCH=swift-6.1.2-release
+ARG SWIFT_VERSION=swift-6.1.2-RELEASE
 ARG SWIFT_WEBROOT=https://download.swift.org
-ARG JAVA_VERSION=23.0.2-tem
-ARG SBT_VERSION=1.10.10
-ARG MAVEN_VERSION=3.9.9
-ARG GRADLE_VERSION=8.12.1
-ARG GO_VERSION=1.24.1
-ARG NODE_VERSION=23.9.0
-ARG PYTHON_VERSION=3.12
-ARG RUBY_VERSION=3.4.2
-ARG SCALA_VERSION=3.6.4
+ARG JAVA_VERSION=24.0.1-tem
+ARG SBT_VERSION=1.11.2
+ARG MAVEN_VERSION=3.9.10
+ARG GRADLE_VERSION=8.14.2
+ARG GO_VERSION=1.25.0
+# renovate: datasource=docker depName=node
+ARG NODE_VERSION=24.6.0
+ARG RUBY_VERSION=3.4.5
+ARG JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF-8"
+ARG SCALA_VERSION=3.7.1
 
 ENV GOPATH=/opt/app-root/go \
     JAVA_VERSION=$JAVA_VERSION \
@@ -32,20 +22,18 @@ ENV GOPATH=/opt/app-root/go \
     MAVEN_VERSION=$MAVEN_VERSION \
     GRADLE_VERSION=$GRADLE_VERSION \
     GRADLE_OPTS="-Dorg.gradle.daemon=false" \
-    JAVA_HOME="/root/.sdkman/candidates/java/${JAVA_VERSION}" \
-    MAVEN_HOME="/root/.sdkman/candidates/maven/${MAVEN_VERSION}" \
-    GRADLE_HOME="/root/.sdkman/candidates/gradle/${GRADLE_VERSION}" \
-    SBT_HOME="/root/.sdkman/candidates/sbt/${SBT_VERSION}" \
+    JAVA_HOME="/opt/.sdkman/candidates/java/${JAVA_VERSION}" \
+    MAVEN_HOME="/opt/.sdkman/candidates/maven/${MAVEN_VERSION}" \
+    GRADLE_HOME="/opt/.sdkman/candidates/gradle/${GRADLE_VERSION}" \
+    SBT_HOME="/opt/.sdkman/candidates/sbt/${SBT_VERSION}" \
     SCALA_VERSION=$SCALA_VERSION \
-    SCALA_HOME="/root/.sdkman/candidates/scala/${SCALA_VERSION}" \
-    PYTHON_VERSION=3.12 \
-    PYTHON_CMD=/usr/bin/python3.12 \
+    SCALA_HOME="/opt/.sdkman/candidates/scala/${SCALA_VERSION}" \
+    PYTHON_CMD=/usr/bin/python3 \
     RUBY_VERSION=$RUBY_VERSION \
     PYTHONUNBUFFERED=1 \
     PYTHONIOENCODING="utf-8" \
     COMPOSER_ALLOW_SUPERUSER=1 \
-    ANDROID_HOME=/opt/android-sdk-linux \
-    JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF-8" \
+    JAVA_TOOL_OPTIONS=$JAVA_TOOL_OPTIONS \
     SWIFT_SIGNING_KEY=$SWIFT_SIGNING_KEY \
     SWIFT_PLATFORM=$SWIFT_PLATFORM \
     SWIFT_BRANCH=$SWIFT_BRANCH \
@@ -54,22 +42,17 @@ ENV GOPATH=/opt/app-root/go \
     LC_ALL=en_US.UTF-8 \
     LANG=en_US.UTF-8 \
     LANGUAGE=en_US.UTF-8 \
-    NVM_DIR="/root/.nvm" \
+    NVM_DIR="/opt/.nvm" \
     TMPDIR=/tmp \
+    DOTNET_CLI_TELEMETRY_OPTOUT=1 \
     NODE_COMPILE_CACHE="/opt/cdxgen-node-cache" \
     PYTHONPATH=/opt/pypi \
     CDXGEN_IN_CONTAINER=true \
-    SDKMAN_DIR=/root/.sdkman \
-    SDKMAN_CANDIDATES_DIR=/root/.sdkman/candidates \
-    npm_config_python=/usr/bin/python3.12 \
-    MALLOC_CONF="dirty_decay_ms:2000,narenas:2,background_thread:true" \
-    RUBY_CONFIGURE_OPTS="--with-jemalloc --enable-yjit" \
-    RUBYOPT="--yjit" \
-    RUBY_BUILD_BUILD_PATH="/tmp/rbenv" \
-    RUBY_BUILD_HTTP_CLIENT=curl
-ENV PATH=${PATH}:/root/.nvm/versions/node/v${NODE_VERSION}/bin:${JAVA_HOME}/bin:${MAVEN_HOME}/bin:${GRADLE_HOME}/bin:${SCALA_HOME}/bin:${SBT_HOME}/bin:${GOPATH}/bin:/usr/local/go/bin:/usr/local/bin/:/root/.local/bin:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/tools:${ANDROID_HOME}/tools/bin:${ANDROID_HOME}/platform-tools:/root/.cargo/bin:/opt/pypi/bin:/root/.rbenv/bin:/root/.rbenv/versions/3.4.1/bin:
-
-COPY . /opt/cdxgen
+    CDXGEN_TEMP_DIR=/tmp/cdxgen-temp \
+    SDKMAN_DIR=/opt/.sdkman \
+    SDKMAN_CANDIDATES_DIR=/opt/.sdkman/candidates \
+    RBENV_ROOT=/opt/.rbenv
+ENV PATH=${PATH}:/opt/bin:/opt/.nvm/versions/node/v${NODE_VERSION}/bin:${JAVA_HOME}/bin:${MAVEN_HOME}/bin:${GRADLE_HOME}/bin:${SCALA_HOME}/bin:${SBT_HOME}/bin:${GOPATH}/bin:/usr/local/go/bin:/usr/local/bin/:/opt/.local/bin:${PYTHONPATH}/bin:/opt/.rbenv/bin:/opt/.rbenv/versions/3.4.5/bin
 
 RUN set -e; \
     ARCH_NAME="$(rpm --eval '%{_arch}')"; \
@@ -86,45 +69,32 @@ RUN set -e; \
         *) echo >&2 "error: unsupported architecture: '$ARCH_NAME'"; exit 1 ;; \
     esac \
     && microdnf install -y php php-curl php-zip php-bcmath php-json php-pear php-mbstring php-devel make gcc git-core \
-        python${PYTHON_VERSION} python${PYTHON_VERSION}-devel python${PYTHON_VERSION}-pip glibc-common glibc-all-langpacks \
+        python3 python3-devel python3-pip glibc-common glibc-all-langpacks \
         openssl-devel libffi-devel libyaml zlib-devel \
-        pcre2 which tar gzip zip unzip bzip2 sudo ncurses ncurses-devel sqlite-devel gnupg2 dotnet-sdk-9.0 \
-    && microdnf install -y epel-release \
-    && microdnf install --enablerepo=crb -y libyaml-devel jemalloc-devel \
-    && alternatives --install /usr/bin/python3 python /usr/bin/python${PYTHON_VERSION} 10 \
-    && alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 10 \
-    && /usr/bin/python${PYTHON_VERSION} --version \
-    && /usr/bin/python${PYTHON_VERSION} -m pip install --no-cache-dir --upgrade setuptools wheel pip virtualenv \
-    && /usr/bin/python${PYTHON_VERSION} -m pip install --no-cache-dir --upgrade pipenv poetry blint atom-tools uv --target /opt/pypi \
-    && /opt/pypi/bin/poetry --version \
-    && /opt/pypi/bin/pipenv --version \
-    && /opt/pypi/bin/blint --help \
-    && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
+        pcre2 which tar gzip zip unzip bzip2 sudo ncurses ncurses-devel sqlite-devel gnupg2 dotnet-sdk-9.0 rust cargo \
+    && ruby --version \
+    && which ruby \
+    && /usr/bin/python3 --version \
+    && /usr/bin/python3 -m pip install --no-cache-dir --upgrade setuptools==77.0.3 wheel pip virtualenv \
+    && /usr/bin/python3 -m pip install --no-cache-dir --upgrade pipenv poetry blint atom-tools uv --target /opt/pypi \
+    && ${PYTHONPATH}/bin/poetry --version \
+    && ${PYTHONPATH}/bin/pipenv --version \
+    && ${PYTHONPATH}/bin/blint --help \
+    && mkdir -p /opt/bin /opt/.nvm /tmp/cdxgen-temp \
     && cargo --version \
     && rustc --version \
     && curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash \
-    && source /root/.nvm/nvm.sh \
+    && source ${NVM_DIR}/nvm.sh \
     && nvm install ${NODE_VERSION} \
     && node --version \
-    && git clone https://github.com/rbenv/rbenv.git --depth=1 ~/.rbenv \
-    && echo 'export PATH="$HOME/.rbenv/bin:$PATH"' >> ~/.bashrc \
-    && echo 'eval "$(~/.rbenv/bin/rbenv init - bash)"' >> ~/.bashrc \
-    && source ~/.bashrc \
-    && mkdir -p "$(rbenv root)/plugins" \
-    && git clone https://github.com/rbenv/ruby-build.git --depth=1 "$(rbenv root)/plugins/ruby-build" \
-    && rbenv install ${RUBY_VERSION} \
-    && rbenv global ${RUBY_VERSION} \
-    && ruby --version \
-    && which ruby \
-    && rm -rf /root/.rbenv/cache $RUBY_BUILD_BUILD_PATH \
     && curl -s "https://get.sdkman.io" | bash \
-    && echo -e "sdkman_auto_answer=true\nsdkman_selfupdate_feature=false\nsdkman_auto_env=true\nsdkman_curl_connect_timeout=20\nsdkman_curl_max_time=0" >> $HOME/.sdkman/etc/config \
-    && source "$HOME/.sdkman/bin/sdkman-init.sh" \
-    && sdk install java $JAVA_VERSION \
-    && sdk install maven $MAVEN_VERSION \
-    && sdk install gradle $GRADLE_VERSION \
-    && sdk install scala $SCALA_VERSION \
-    && sdk install sbt $SBT_VERSION \
+    && echo -e "sdkman_auto_answer=true\nsdkman_selfupdate_feature=false\nsdkman_auto_env=true\nsdkman_curl_connect_timeout=20\nsdkman_curl_max_time=0" >> /opt/.sdkman/etc/config \
+    && source "/opt/.sdkman/bin/sdkman-init.sh" \
+    && sdk install java $JAVA_VERSION /opt/.sdkman/candidates/java \
+    && sdk install maven $MAVEN_VERSION /opt/.sdkman/candidates/maven \
+    && sdk install gradle $GRADLE_VERSION /opt/.sdkman/candidates/gradle \
+    && sdk install scala $SCALA_VERSION /opt/.sdkman/candidates/scala \
+    && sdk install sbt $SBT_VERSION /opt/.sdkman/candidates/sbt \
     && SWIFT_WEBDIR="$SWIFT_WEBROOT/$SWIFT_BRANCH/$(echo $SWIFT_PLATFORM | tr -d .)$OS_ARCH_SUFFIX" \
     && SWIFT_BIN_URL="$SWIFT_WEBDIR/$SWIFT_VERSION/$SWIFT_VERSION-$SWIFT_PLATFORM$OS_ARCH_SUFFIX.tar.gz" \
     && SWIFT_SIG_URL="$SWIFT_BIN_URL.sig" \
@@ -137,15 +107,6 @@ RUN set -e; \
     && chmod +x /usr/bin/swift \
     && rm -rf "$GNUPGHOME" swift.tar.gz.sig swift.tar.gz \
     && swift --version \
-    && mkdir -p ${ANDROID_HOME}/cmdline-tools \
-    && curl -L https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o ${ANDROID_HOME}/cmdline-tools/android_tools.zip \
-    && unzip ${ANDROID_HOME}/cmdline-tools/android_tools.zip -d ${ANDROID_HOME}/cmdline-tools/ \
-    && rm ${ANDROID_HOME}/cmdline-tools/android_tools.zip \
-    && mv ${ANDROID_HOME}/cmdline-tools/cmdline-tools ${ANDROID_HOME}/cmdline-tools/latest \
-    && yes | /opt/android-sdk-linux/cmdline-tools/latest/bin/sdkmanager --licenses --sdk_root=/opt/android-sdk-linux \
-    && /opt/android-sdk-linux/cmdline-tools/latest/bin/sdkmanager 'platform-tools' --sdk_root=/opt/android-sdk-linux \
-    && /opt/android-sdk-linux/cmdline-tools/latest/bin/sdkmanager 'platforms;android-34' --sdk_root=/opt/android-sdk-linux \
-    && /opt/android-sdk-linux/cmdline-tools/latest/bin/sdkmanager 'build-tools;34.0.0' --sdk_root=/opt/android-sdk-linux \
     && curl -LO "https://dl.google.com/go/go${GO_VERSION}.linux-${GOBIN_VERSION}.tar.gz" \
     && tar -C /usr/local -xzf go${GO_VERSION}.linux-${GOBIN_VERSION}.tar.gz \
     && rm go${GO_VERSION}.linux-${GOBIN_VERSION}.tar.gz \
@@ -156,12 +117,14 @@ RUN set -e; \
     && /usr/local/bin/lein \
     && curl -L -O https://github.com/clojure/brew-install/releases/latest/download/linux-install.sh \
     && chmod +x linux-install.sh \
-    && ./linux-install.sh \
+    && ./linux-install.sh && rm linux-install.sh \
     && curl -L --output /usr/local/bin/bazel https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-${GOBIN_VERSION} \
     && chmod +x /usr/local/bin/bazel \
     && useradd -ms /bin/bash cyclonedx \
+    && mv /root/.bashrc /home/cyclonedx/.bashrc \
+    && chown -R cyclonedx:cyclonedx /home/cyclonedx/.bashrc \
     && npm install --global corepack@latest \
-    && npm install --unsafe-perm -g node-gyp @microsoft/rush --omit=dev \
+    && npm install -g node-gyp @microsoft/rush --omit=dev \
     && npx node-gyp install \
     && pecl channel-update pecl.php.net \
     && pecl install timezonedb \
@@ -170,15 +133,31 @@ RUN set -e; \
     && mv composer.phar /usr/local/bin/composer \
     && gem install bundler cocoapods \
     && gem --version \
-    && bundler --version \
-    && dotnet workload install wasm-tools \
-    && dotnet workload list \
-    && cd /opt/cdxgen && corepack enable && corepack pnpm install --config.strict-dep-builds=true --prod --package-import-method copy --frozen-lockfile && corepack pnpm cache delete \
-    && mkdir -p /opt/cdxgen-node-cache \
-    && chown -R cyclonedx:cyclonedx /opt/cdxgen /opt/cdxgen-node-cache \
+    && bundler --version
+
+FROM base AS cdxgen
+
+LABEL maintainer="cyclonedx" \
+      org.opencontainers.image.authors="Prabhu Subramanian <prabhu@appthreat.com>" \
+      org.opencontainers.image.source="https://github.com/cyclonedx/cdxgen" \
+      org.opencontainers.image.url="https://github.com/cyclonedx/cdxgen" \
+      org.opencontainers.image.version="11.5.x" \
+      org.opencontainers.image.vendor="cyclonedx" \
+      org.opencontainers.image.licenses="Apache-2.0" \
+      org.opencontainers.image.title="cdxgen" \
+      org.opencontainers.image.description="Container image for cdxgen SBOM generator packing latest build tools." \
+      org.opencontainers.docker.cmd="docker run --rm -v /tmp:/tmp -p 9090:9090 -v $(pwd):/app:rw -t ghcr.io/cyclonedx/cdxgen -r /app --server"
+
+COPY . /opt/cdxgen
+
+RUN cd /opt/cdxgen && corepack enable pnpm && pnpm config set global-bin-dir /opt/bin \
+    && pnpm install --config.strict-dep-builds=true --prod --package-import-method copy --frozen-lockfile && pnpm link && pnpm cache delete \
+    && pnpm bin && pnpm bin -g \
+    && mkdir -p ${NODE_COMPILE_CACHE} \
+    && chown -R cyclonedx:cyclonedx /opt/cdxgen ${NODE_COMPILE_CACHE} ${CDXGEN_TEMP_DIR} \
     && chmod a-w -R /opt \
-    && node /opt/cdxgen/bin/cdxgen.js --help \
     && rm -rf /var/cache/yum /root/.cache/pypoetry /root/.cache/node \
     && microdnf clean all
+USER cyclonedx
 WORKDIR /app
-ENTRYPOINT ["node", "/opt/cdxgen/bin/cdxgen.js"]
+ENTRYPOINT ["cdxgen"]

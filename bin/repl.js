@@ -5,6 +5,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import repl from "node:repl";
+
 import jsonata from "jsonata";
 
 import { createBom } from "../lib/cli/index.js";
@@ -12,13 +13,14 @@ import {
   printCallStack,
   printDependencyTree,
   printFormulation,
-  printOSTable,
   printOccurrences,
+  printOSTable,
   printServices,
   printSummary,
   printTable,
   printVulnerabilities,
 } from "../lib/helpers/display.js";
+import { readBinary } from "../lib/helpers/protobom.js";
 import { getTmpDir } from "../lib/helpers/utils.js";
 import { validateBom } from "../lib/helpers/validator.js";
 
@@ -50,15 +52,15 @@ if (process.env?.CDXGEN_NODE_OPTIONS) {
 }
 
 // The current sbom is stored here
-let sbom = undefined;
+let sbom;
 
-let historyFile = undefined;
+let historyFile;
 const historyConfigDir = join(homedir(), ".config", ".cdxgen");
 if (!process.env.CDXGEN_REPL_HISTORY && !fs.existsSync(historyConfigDir)) {
   try {
     fs.mkdirSync(historyConfigDir, { recursive: true });
     historyFile = join(historyConfigDir, ".repl_history");
-  } catch (e) {
+  } catch (_e) {
     // ignore
   }
 } else {
@@ -78,6 +80,12 @@ export const importSbom = (sbomOrPath) => {
     } catch (e) {
       console.log(`⚠ Unable to import the BOM from ${sbomOrPath} due to ${e}`);
     }
+  } else if (
+    (sbomOrPath?.endsWith(".cdx") || sbomOrPath?.endsWith(".proto")) &&
+    fs.existsSync(sbomOrPath)
+  ) {
+    sbom = readBinary(sbomOrPath, true);
+    printSummary(sbom);
   } else {
     console.log(`⚠ ${sbomOrPath} is invalid.`);
   }

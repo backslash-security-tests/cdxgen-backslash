@@ -2,37 +2,49 @@ name: nydus tests
 
 on:
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/controlling-permissions-for-github_token
+permissions: {}
+
 jobs:
   build:
     if: github.repository == 'CycloneDX/cdxgen'
     strategy:
       fail-fast: false
       matrix:
-        node-version: ['23.x']
+        java-version: ['24']
+        node-version: ['24.6.0']
         os: ['ubuntu-latest']
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up JDK
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - name: Set up JDK ${{ matrix.java-version }}
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
         with:
           distribution: 'temurin'
-          java-version: '23'
+          java-version: ${{ matrix.java-version }}
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ matrix.node-version }}
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
+          persist-credentials: false
           repository: 'DependencyTrack/dependency-track'
           path: 'repotests/dependency-track'
       - name: setup nydus
         run: |
-          curl -LO https://github.com/dragonflyoss/nydus/releases/download/v2.3.0/nydus-static-v2.3.0-linux-amd64.tgz
-          tar -xvf nydus-static-v2.3.0-linux-amd64.tgz
+          curl -LO https://github.com/dragonflyoss/nydus/releases/download/v2.3.1/nydus-static-v2.3.1-linux-amd64.tgz
+          tar -xvf nydus-static-v2.3.1-linux-amd64.tgz
           chmod +x nydus-static/*
           mv nydus-static/* /usr/local/bin/
-          rm -rf nydus-static-v2.3.0-linux-amd64.tgz nydus-static
+          rm -rf nydus-static-v2.3.1-linux-amd64.tgz nydus-static
           curl -LO https://github.com/containerd/nerdctl/releases/download/v2.0.3/nerdctl-full-2.0.3-linux-amd64.tar.gz
           sudo tar Cxzvf /usr/local nerdctl-full-2.0.3-linux-amd64.tar.gz
           sudo mkdir -p /etc/nydus/

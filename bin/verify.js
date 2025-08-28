@@ -3,11 +3,13 @@
 import fs from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { URL } from "node:url";
+
 import jws from "jws";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
+
 import { dirNameStr } from "../lib/helpers/utils.js";
+import { getBomWithOras } from "../lib/managers/oci.js";
 
 const dirName = dirNameStr;
 
@@ -16,6 +18,9 @@ const args = yargs(hideBin(process.argv))
     alias: "i",
     default: "bom.json",
     description: "Input json to validate. Default bom.json",
+  })
+  .option("platform", {
+    description: "The platform to validate. No default",
   })
   .option("public-key", {
     default: "public.key",
@@ -26,6 +31,7 @@ const args = yargs(hideBin(process.argv))
   .scriptName("cdx-verify")
   .version()
   .help("h")
+  .alias("h", "help")
   .wrap(Math.min(120, yargs().terminalWidth())).argv;
 
 if (args.version) {
@@ -43,7 +49,25 @@ if (process.env?.CDXGEN_NODE_OPTIONS) {
   process.env.NODE_OPTIONS = `${process.env.NODE_OPTIONS || ""} ${process.env.CDXGEN_NODE_OPTIONS}`;
 }
 
-const bomJson = JSON.parse(fs.readFileSync(args.input, "utf8"));
+function getBom(args) {
+  if (fs.existsSync(args.input)) {
+    return JSON.parse(fs.readFileSync(args.input, "utf8"));
+  }
+  if (
+    args.input.includes(":") ||
+    args.input.includes("docker") ||
+    args.input.includes("ghcr")
+  ) {
+    return getBomWithOras(args.input, args.platform);
+  }
+  return undefined;
+}
+
+const bomJson = getBom(args);
+if (!bomJson) {
+  console.log(`${args.input} is invalid!`);
+  process.exit(1);
+}
 let hasInvalidComp = false;
 // Validate any component signature
 for (const comp of bomJson.components) {
@@ -77,7 +101,7 @@ if (!bomSignature) {
   if (validationResult) {
     console.log("Signature is valid!");
   } else {
-    console.log("SBOM signature is invalid!");
+    console.log("BOM signature is invalid!");
     process.exit(1);
   }
 }

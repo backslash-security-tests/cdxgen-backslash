@@ -1,5 +1,7 @@
 import { readFileSync } from "node:fs";
+
 import { dirNameStr, getAllFiles } from "../../lib/helpers/utils.js";
+
 let datasetDir = dirNameStr;
 const argv = process.argv.slice(2);
 if (argv.length > 1) {
@@ -13,7 +15,10 @@ for (const jf of jsonlFiles) {
   const lines = readFileSync(jf, "utf-8");
   for (const ajson of lines.split("\n")) {
     try {
-      JSON.parse(ajson);
+      const aline = JSON.parse(ajson);
+      if (!aline.messages || !Array.isArray(aline.messages) || aline.messages.length !== 2 || aline.messages[0].role !== "user" || aline.messages[1].role !== "assistant") {
+        failedLines.push(ajson);
+      }
     } catch (e) {
       failedLines.push(ajson);
     }

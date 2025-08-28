@@ -1,56 +1,51 @@
 name: docker tests
 
 on:
-  workflow_dispatch:
   pull_request:
-    paths-ignore:
-      - 'docs/**'
-      - '*.md'
+    paths:
+      - '.github/workflows/dockertests.yml'
+      - '.pnpmfile.cjs'
+      - 'bin/**'
+      - 'data/**'
+      - 'index.cjs'
+      - 'lib/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '!**.poku.js'
+  workflow_dispatch:
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
+
+# https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/controlling-permissions-for-github_token
+permissions: {}
+
 jobs:
   linux-tests:
     strategy:
       fail-fast: true
       matrix:
         os: ['ubuntu-24.04', 'ubuntu-24.04-arm']
-        node-version: ['23.x']
-        java-version: ['23']
+        node-version: ['24.6.0']
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ matrix.node-version }}
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - name: Set up JDK
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: ${{ matrix.java-version }}
-      - name: Trim CI agent
-        run: |
-          chmod +x contrib/free_disk_space.sh
-          ./contrib/free_disk_space.sh
       - name: npm install, build and test
         run: |
           npm install --global corepack@latest
           corepack enable
           corepack pnpm install --config.strict-dep-builds=true --package-import-method copy
           corepack pnpm test
-          mkdir -p bomresults repotests
+          mkdir -p bomresults
         env:
           CI: true
           CDXGEN_TEMP_DIR: ${{ runner.temp }}/cdxgen-dockertests
-      - uses: actions/checkout@v4
-        with:
-          repository: 'grafana-operator/grafana-operator'
-          path: 'repotests/grafana-operator'
       - name: dockertests
         if: matrix.os == 'ubuntu-24.04'
         run: |
@@ -76,12 +71,8 @@ jobs:
           docker save shiftleft/scan-slim:latest -o /tmp/scanslim.tar
           docker rmi shiftleft/scan-slim:latest
           bin/cdxgen.js /tmp/scanslim.tar -o bomresults/bom-scanarch.json --fail-on-error
-          bin/cdxgen.js -t docker-compose test/data -o bomresults/bom-dc.json --fail-on-error
-          bin/cdxgen.js -t operator repotests/grafana-operator -o bomresults/bom-op.json --fail-on-error
           rm /tmp/scanslim.tar
           ls -ltr bomresults
-        env:
-          CDXGEN_DEBUG_MODE: verbose
       - name: dockertests arm
         if: matrix.os == 'ubuntu-24.04-arm'
         run: |
@@ -92,35 +83,21 @@ jobs:
           bin/cdxgen.js almalinux:9.4-minimal -t docker -o bomresults/bom-almalinux.json --fail-on-error
           docker rmi almalinux:9.4-minimal
           ls -ltr bomresults
-        env:
-          CDXGEN_DEBUG_MODE: verbose
   linux-dockertar-tests:
     strategy:
       fail-fast: true
       matrix:
         os: ['ubuntu-24.04', 'ubuntu-24.04-arm']
-        node-version: ['23.x']
-        java-version: ['23']
+        node-version: ['24.6.0']
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ matrix.node-version }}
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - name: Set up JDK
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: ${{ matrix.java-version }}
-      - name: Trim CI agent
-        run: |
-          chmod +x contrib/free_disk_space.sh
-          ./contrib/free_disk_space.sh
       - name: npm install, build and test
         run: |
           npm install --global corepack@latest
@@ -130,51 +107,33 @@ jobs:
           mkdir -p bomresults repotests
         env:
           CI: true
-      - uses: actions/checkout@v4
-        with:
-          repository: 'grafana-operator/grafana-operator'
-          path: 'repotests/grafana-operator'
       - name: dockertests
         if: matrix.os == 'ubuntu-24.04'
         run: |
-          docker pull elasticsearch@sha256:3686a5757ed46c9dbcf00f6f71fce48ffc5413b193a80d1c46a21e7aad4c53ad
-          docker save -o /tmp/elastic.tar elasticsearch@sha256:3686a5757ed46c9dbcf00f6f71fce48ffc5413b193a80d1c46a21e7aad4c53ad
-          docker rmi elasticsearch@sha256:3686a5757ed46c9dbcf00f6f71fce48ffc5413b193a80d1c46a21e7aad4c53ad
-          bin/cdxgen.js /tmp/elastic.tar -t docker -o bomresults/bom-elastic.tar.json --fail-on-error
+          docker pull ubuntu:latest
+          docker save -o /tmp/ubuntu.tar ubuntu:latest
+          docker rmi ubuntu:latest
+          bin/cdxgen.js /tmp/ubuntu.tar -t docker -o bomresults/bom-ubuntu.tar.json --fail-on-error
           docker pull alpine:latest
           docker save -o /tmp/alpine.tar alpine:latest
           docker rmi alpine:latest
           bin/cdxgen.js /tmp/alpine.tar -t docker -o bomresults/bom-alpine.tar.json --fail-on-error
           ls -ltr bomresults
-        env:
-          CDXGEN_DEBUG_MODE: verbose
   os-tests:
     strategy:
       fail-fast: true
       matrix:
-        node-version: ['23.x']
-        java-version: ['23']
+        node-version: ['24.6.0']
         os: [ubuntu-24.04, ubuntu-24.04-arm]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ matrix.node-version }}
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - name: Set up JDK
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: ${{ matrix.java-version }}
-      - name: Trim CI agent
-        run: |
-          chmod +x contrib/free_disk_space.sh
-          ./contrib/free_disk_space.sh
       - name: npm install, build and test
         run: |
           npm install --global corepack@latest
@@ -186,9 +145,7 @@ jobs:
       - name: ostests
         run: |
           bin/cdxgen.js -t os -o bomresults/bom-os.json --fail-on-error
-        env:
-          CDXGEN_DEBUG_MODE: verbose
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: matrix.os == 'ubuntu-24.04-arm'
         with:
           name: bomresults-os
@@ -200,23 +157,15 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        node-version: ['23.x']
-        java-version: ['23']
+        node-version: ['24.6.0']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ matrix.node-version }}
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - name: Set up JDK
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: ${{ matrix.java-version }}
       - name: npm install, build
         run: |
           npm install --global corepack@latest
@@ -229,9 +178,7 @@ jobs:
         run: |
           node bin/cdxgen.js -t os -o bomresults/bom-win.json --fail-on-error
           dir bomresults
-        env:
-          CDXGEN_DEBUG_MODE: verbose
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: bomresults-win
           path: bomresults

@@ -48,10 +48,13 @@ You are a helpful assistant to the user.
 Create a Modelfile as shown:
 
 ```text
-FROM hf.co/CycloneDX/cdx1-gguf-Q8_0-GGUF
+FROM hf.co/CycloneDX/cdx1-14B-Q8_0-GGUF
 
-PARAMETER num_ctx 16000
-PARAMETER temperature 0.05
+PARAMETER temperature 0.7
+PARAMETER min_p 0.0
+PARAMETER top_p 0.8
+PARAMETER top_k 20
+PARAMETER repeat_penalty 1.05
 
 SYSTEM """You are a helpful assistant to the user."""
 ```
@@ -62,29 +65,6 @@ ollama create cdx1 -f ./Modelfile
 
 ```text
 ollama show cdx1
-Model
-    architecture        llama
-    parameters          14.7B
-    context length      16384
-    embedding length    5120
-    quantization        Q8_0
-
-  Parameters
-    num_ctx        16000
-    stop           "<|im_start|>"
-    stop           "<|im_sep|>"
-    stop           "<|im_end|>"
-    stop           "<|im_start|>"
-    stop           "<|im_sep|>"
-    stop           "<|im_end|>"
-    stop           "<|im_start|>"
-    stop           "<|im_sep|>"
-    stop           "<|im_end|>"
-    stop           "<|im_start|>user<|im_sep|>"
-    temperature    0.05
-
-  System
-    You are a helpful assistant to the user.
 ```
 
 ```shell
@@ -104,11 +84,11 @@ node validator.js
 ### For datasets
 
 ```
-@misc{cdx-docs-data,
+@misc{cdx-docs,
   author = {OWASP CycloneDX Generator Team},
   month = Feb,
   title = {{CycloneDX and cdxgen}},
-  howpublished = {{https://huggingface.co/datasets/CycloneDX/cdx-docs-data}},
+  howpublished = {{https://huggingface.co/datasets/CycloneDX/cdx-docs}},
   year = {2025}
 }
 ```
@@ -120,7 +100,7 @@ node validator.js
   author = {OWASP CycloneDX Generator Team},
   month = Feb,
   title = {{CycloneDX and cdxgen}},
-  howpublished = {{https://huggingface.co/models/CycloneDX/cdx1}},
+  howpublished = {{https://huggingface.co/models/CycloneDX}},
   year = {2025}
 }
 ```

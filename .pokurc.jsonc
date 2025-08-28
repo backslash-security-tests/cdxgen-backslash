@@ -1,0 +1,6 @@
+{
+  "$schema": "https://poku.io/schemas/configs.json",
+  "include": ["lib"],
+  "filter": ".poku.js",
+  "reporter": "verbose"
+}

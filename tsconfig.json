@@ -1,10 +1,11 @@
 {
   "include": ["*.js", "lib/**/*.js"],
   "exclude": [
-    "*.test.js",
+    "*.poku.js",
     "lib/evinser/evinser.js",
-    "lib/**/*.test.js",
-    "types/**/*"
+    "lib/**/*.poku.js",
+    "types/**/*",
+    "contrib/**"
   ],
   "compilerOptions": {
     "allowJs": true,

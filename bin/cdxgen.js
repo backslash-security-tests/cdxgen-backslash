@@ -1,14 +1,16 @@
 #!/usr/bin/env node
-
+import { Buffer } from "node:buffer";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import process from "node:process";
-import { URL } from "node:url";
-import { findUpSync } from "find-up";
+
 import globalAgent from "global-agent";
-import { load as _load } from "js-yaml";
 import jws from "jws";
+import { parse as _load } from "yaml";
+import yargs from "yargs";
+import { hideBin } from "yargs/helpers";
+
 import { createBom, submitBom } from "../lib/cli/index.js";
 import {
   printCallStack,
@@ -21,47 +23,53 @@ import {
   printSummary,
   printTable,
 } from "../lib/helpers/display.js";
-import { thoughtEnd, thoughtLog } from "../lib/helpers/logger.js";
+import { TRACE_MODE, thoughtEnd, thoughtLog } from "../lib/helpers/logger.js";
 import {
   ATOM_DB,
+  commandsExecuted,
   DEBUG_MODE,
   dirNameStr,
+  getRuntimeInformation,
   getTmpDir,
   isMac,
   isSecureMode,
   isWin,
+  remoteHostsAccessed,
   safeExistsSync,
 } from "../lib/helpers/utils.js";
 import { validateBom } from "../lib/helpers/validator.js";
 import { postProcess } from "../lib/stages/postgen/postgen.js";
 import { prepareEnv } from "../lib/stages/pregen/pregen.js";
 
+const dirName = dirNameStr;
+
 // Support for config files
-const configPath = findUpSync([
+const configPaths = [
   ".cdxgenrc",
   ".cdxgen.json",
   ".cdxgen.yml",
   ".cdxgen.yaml",
-]);
+];
 let config = {};
-if (configPath) {
+for (const configPattern of configPaths) {
+  const configPath = join(process.cwd(), configPattern);
+  if (!safeExistsSync(configPath)) {
+    continue;
+  }
   try {
     if (configPath.endsWith(".yml") || configPath.endsWith(".yaml")) {
       config = _load(fs.readFileSync(configPath, "utf-8"));
     } else {
       config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
     }
-  } catch (e) {
+  } catch (_e) {
     console.log("Invalid config file", configPath);
   }
 }
 
-const dirName = dirNameStr;
+const _yargs = yargs(hideBin(process.argv));
 
-import yargs from "yargs";
-import { hideBin } from "yargs/helpers";
-
-const args = yargs(hideBin(process.argv))
+const args = _yargs
   .env("CDXGEN")
   .parserConfiguration({
     "greedy-arrays": false,
@@ -196,17 +204,14 @@ const args = yargs(hideBin(process.argv))
   })
   .option("usages-slices-file", {
     description: "Path for the usages slices file created by atom.",
-    default: "usages.slices.json",
     hidden: true,
   })
   .option("data-flow-slices-file", {
     description: "Path for the data-flow slices file created by atom.",
-    default: "data-flow.slices.json",
     hidden: true,
   })
   .option("reachables-slices-file", {
     description: "Path for the reachables slices file created by atom.",
-    default: "reachables.slices.json",
     hidden: true,
   })
   .option("semantics-slices-file", {
@@ -214,10 +219,15 @@ const args = yargs(hideBin(process.argv))
     default: "semantics.slices.json",
     hidden: true,
   })
+  .option("openapi-spec-file", {
+    description: "Path for the openapi specification file (SaaSBOM).",
+    hidden: true,
+  })
   .option("spec-version", {
     description: "CycloneDX Specification version to use. Defaults to 1.6",
     default: 1.6,
     type: "number",
+    choices: [1.4, 1.5, 1.6, 1.7],
   })
   .option("filter", {
     description:
@@ -254,19 +264,24 @@ const args = yargs(hideBin(process.argv))
     hidden: true,
     choices: ["pre-build", "build", "post-build"],
   })
+  .option("include-regex", {
+    description:
+      "glob pattern to include. This overrides the default pattern used during auto-detection.",
+    type: "string",
+  })
   .option("exclude", {
+    alias: "exclude-regex",
     description: "Additional glob pattern(s) to ignore",
+    type: "array",
   })
   .option("export-proto", {
     type: "boolean",
     default: false,
     description: "Serialize and export BOM as protobuf binary.",
-    hidden: true,
   })
   .option("proto-bin-file", {
     description: "Path for the serialized protobuf binary.",
     default: "bom.cdx",
-    hidden: true,
   })
   .option("include-formulation", {
     type: "boolean",
@@ -328,13 +343,19 @@ const args = yargs(hideBin(process.argv))
       "filename",
     ],
   })
+  .option("tlp-classification", {
+    description:
+      'Traffic Light Protocol (TLP) is a classification system for identifying the potential risk associated with artefact, including whether it is subject to certain types of legal, financial, or technical threats. Refer to [https://www.first.org/tlp/](https://www.first.org/tlp/) for further information.\nThe default classification is "CLEAR"',
+    choices: ["CLEAR", "GREEN", "AMBER", "AMBER_AND_STRICT", "RED"],
+    default: "CLEAR",
+    hidden: true,
+  })
   .completion("completion", "Generate bash/zsh completion")
   .array("type")
   .array("excludeType")
   .array("filter")
   .array("only")
   .array("author")
-  .array("exclude")
   .array("standard")
   .array("feature-flags")
   .array("technique")
@@ -363,25 +384,36 @@ const args = yargs(hideBin(process.argv))
   .epilogue("for documentation, visit https://cyclonedx.github.io/cdxgen")
   .config(config)
   .scriptName("cdxgen")
-  .version()
+  .version(version())
   .alias("v", "version")
-  .help("h")
-  .alias("h", "help")
+  .help(false)
+  .option("help", {
+    alias: "h",
+    type: "boolean",
+    description: "Show help",
+  })
   .wrap(Math.min(120, yargs().terminalWidth())).argv;
 
 if (process.env?.CDXGEN_NODE_OPTIONS) {
   process.env.NODE_OPTIONS = `${process.env.NODE_OPTIONS || ""} ${process.env.CDXGEN_NODE_OPTIONS}`;
 }
 
-if (args.version) {
+if (args.help) {
+  console.log(`${version()}\n`);
+  _yargs.showHelp();
+  process.exit(0);
+}
+
+function version() {
   const packageJsonAsString = fs.readFileSync(
-    join(dirName, "..", "package.json"),
+    join(dirName, "package.json"),
     "utf-8",
   );
   const packageJson = JSON.parse(packageJsonAsString);
 
-  console.log(packageJson.version);
-  process.exit(0);
+  const runtimeInfo = getRuntimeInformation();
+
+  return `\x1b[1mCycloneDX Generator ${packageJson.version}\x1b[0m\nRuntime: ${runtimeInfo.runtime}, Version: ${runtimeInfo.version}`;
 }
 
 if (process.env.GLOBAL_AGENT_HTTP_PROXY || process.env.HTTP_PROXY) {
@@ -390,6 +422,7 @@ if (process.env.GLOBAL_AGENT_HTTP_PROXY || process.env.HTTP_PROXY) {
     process.env.GLOBAL_AGENT_ENVIRONMENT_VARIABLE_NAMESPACE = "";
   }
   globalAgent.bootstrap();
+  thoughtLog("Using the configured HTTP proxy. 🌐");
 }
 
 const filePath = args._[0] || process.cwd();
@@ -434,7 +467,18 @@ const options = Object.assign({}, args, {
     isSecureMode && args.output === "bom.json"
       ? resolve(join(filePath, args.output))
       : args.output,
+  exclude: args.exclude || args.excludeRegex,
+  include: args.include || args.includeRegex,
 });
+// Should we create the output directory?
+const outputDirectory = dirname(options.output);
+if (
+  outputDirectory &&
+  outputDirectory !== process.cwd() &&
+  !safeExistsSync(outputDirectory)
+) {
+  fs.mkdirSync(outputDirectory, { recursive: true });
+}
 // Filter duplicate types. Eg: -t gradle -t gradle
 if (options.projectType && Array.isArray(options.projectType)) {
   options.projectType = Array.from(new Set(options.projectType));
@@ -444,11 +488,23 @@ if (!options.projectType) {
     "Ok, the user wants me to identify all the project types and generate a consolidated BOM document.",
   );
 }
-if (process.argv[1].includes("cbom")) {
-  thoughtLog(
-    "Ok, the user wants to generate Cryptographic Bill-of-Materials (CBOM).",
-  );
-  options.includeCrypto = true;
+// Handle dedicated cbom and saasbom commands
+if (["cbom", "saasbom"].includes(process.argv[1])) {
+  if (process.argv[1].includes("cbom")) {
+    thoughtLog(
+      "Ok, the user wants to generate Cryptographic Bill-of-Materials (CBOM).",
+    );
+    options.includeCrypto = true;
+  } else if (process.argv[1].includes("saasbom")) {
+    thoughtLog(
+      "Ok, the user wants to generate a Software as a Service Bill-of-Materials (SaaSBOM). I should carefully collect the services, endpoints, and data flows.",
+    );
+    if (process.env?.CDXGEN_IN_CONTAINER !== "true") {
+      thoughtLog(
+        "Wait, I'm not running in a container. This means the chances of successfully collecting this inventory are quite low. Perhaps this is an advanced user who has set up atom and atom-tools already 🤔?",
+      );
+    }
+  }
   options.evidence = true;
   options.specVersion = 1.6;
   options.deep = true;
@@ -644,6 +700,11 @@ const checkPermissions = (filePath, options) => {
   }
   // Secure mode checks
   if (isSecureMode) {
+    if (process.env?.GITHUB_TOKEN) {
+      console.log(
+        "Ensure that the GitHub token provided to cdxgen is restricted to read-only scopes.",
+      );
+    }
     if (process.permission.has("fs.read", "*")) {
       console.log(
         "\x1b[1;35mSECURE MODE: DO NOT run cdxgen with FileSystemRead permission set to wildcard.\x1b[0m",
@@ -695,7 +756,7 @@ const checkPermissions = (filePath, options) => {
       "usages-slices-file",
       "reachables-slices-file",
     ];
-    if (options?.type?.includes("swift")) {
+    if (options?.type?.includes("swift") || options?.type?.includes("scala")) {
       slicesFilesKeys.push("semantics-slices-file");
     }
     for (const sf of slicesFilesKeys) {
@@ -753,6 +814,14 @@ const checkPermissions = (filePath, options) => {
   return true;
 };
 
+const needsBomSigning = ({ generateKeyAndSign }) =>
+  generateKeyAndSign ||
+  (process.env.SBOM_SIGN_ALGORITHM &&
+    process.env.SBOM_SIGN_ALGORITHM !== "none" &&
+    ((process.env.SBOM_SIGN_PRIVATE_KEY &&
+      safeExistsSync(process.env.SBOM_SIGN_PRIVATE_KEY)) ||
+      process.env.SBOM_SIGN_PRIVATE_KEY_BASE64));
+
 /**
  * Method to start the bom creation process
  */
@@ -771,10 +840,6 @@ const checkPermissions = (filePath, options) => {
     }
     return;
   }
-  // This will prevent people from accidentally using the usages slices belonging to a different project
-  if (!options.usagesSlicesFile) {
-    options.usagesSlicesFile = `${options.projectName}-usages.json`;
-  }
   prepareEnv(filePath, options);
   thoughtLog("Getting ready to generate the BOM ⚡️.");
   let bomNSData = (await createBom(filePath, options)) || {};
@@ -792,7 +857,7 @@ const checkPermissions = (filePath, options) => {
     const jsonFile = options.output;
     // Create bom json file
     if (bomNSData.bomJson) {
-      let jsonPayload = undefined;
+      let jsonPayload;
       if (
         typeof bomNSData.bomJson === "string" ||
         bomNSData.bomJson instanceof String
@@ -814,25 +879,19 @@ const checkPermissions = (filePath, options) => {
           thoughtLog(`Let's save the file to "${jsonFile}".`);
         }
       }
-      if (
-        jsonPayload &&
-        (options.generateKeyAndSign ||
-          (process.env.SBOM_SIGN_ALGORITHM &&
-            process.env.SBOM_SIGN_ALGORITHM !== "none" &&
-            process.env.SBOM_SIGN_PRIVATE_KEY &&
-            safeExistsSync(process.env.SBOM_SIGN_PRIVATE_KEY)))
-      ) {
+      if (jsonPayload && needsBomSigning(options)) {
         let alg = process.env.SBOM_SIGN_ALGORITHM || "RS512";
         if (alg.includes("none")) {
           alg = "RS512";
         }
-        let privateKeyToUse = undefined;
-        let jwkPublicKey = undefined;
-        let publicKeyFile = undefined;
+        let privateKeyToUse;
+        let jwkPublicKey;
+        let publicKeyFile;
         if (options.generateKeyAndSign) {
           const jdirName = dirname(jsonFile);
           publicKeyFile = join(jdirName, "public.key");
           const privateKeyFile = join(jdirName, "private.key");
+          const privateKeyB64File = join(jdirName, "private.key.base64");
           const { privateKey, publicKey } = crypto.generateKeyPairSync("rsa", {
             modulusLength: 4096,
             publicKeyEncoding: {
@@ -846,20 +905,32 @@ const checkPermissions = (filePath, options) => {
           });
           fs.writeFileSync(publicKeyFile, publicKey);
           fs.writeFileSync(privateKeyFile, privateKey);
+          fs.writeFileSync(
+            privateKeyB64File,
+            Buffer.from(privateKey, "utf8").toString("base64"),
+          );
           console.log(
             "Created public/private key pairs for testing purposes",
             publicKeyFile,
             privateKeyFile,
+            privateKeyB64File,
           );
           privateKeyToUse = privateKey;
           jwkPublicKey = crypto
             .createPublicKey(publicKey)
             .export({ format: "jwk" });
         } else {
-          privateKeyToUse = fs.readFileSync(
-            process.env.SBOM_SIGN_PRIVATE_KEY,
-            "utf8",
-          );
+          if (process.env?.SBOM_SIGN_PRIVATE_KEY) {
+            privateKeyToUse = fs.readFileSync(
+              process.env.SBOM_SIGN_PRIVATE_KEY,
+              "utf8",
+            );
+          } else if (process.env?.SBOM_SIGN_PRIVATE_KEY_BASE64) {
+            privateKeyToUse = Buffer.from(
+              process.env.SBOM_SIGN_PRIVATE_KEY_BASE64,
+              "base64",
+            ).toString("utf8");
+          }
           if (
             process.env.SBOM_SIGN_PUBLIC_KEY &&
             safeExistsSync(process.env.SBOM_SIGN_PUBLIC_KEY)
@@ -869,6 +940,11 @@ const checkPermissions = (filePath, options) => {
                 fs.readFileSync(process.env.SBOM_SIGN_PUBLIC_KEY, "utf8"),
               )
               .export({ format: "jwk" });
+          } else if (process.env?.SBOM_SIGN_PUBLIC_KEY_BASE64) {
+            jwkPublicKey = Buffer.from(
+              process.env.SBOM_SIGN_PUBLIC_KEY_BASE64,
+              "base64",
+            ).toString("utf8");
           }
         }
         try {
@@ -976,6 +1052,7 @@ const checkPermissions = (filePath, options) => {
       dataFlowSlicesFile: options.dataFlowSlicesFile,
       reachablesSlicesFile: options.reachablesSlicesFile,
       semanticsSlicesFile: options.semanticsSlicesFile,
+      openapiSpecFile: options.openapiSpecFile,
       includeCrypto: options.includeCrypto,
       specVersion: options.specVersion,
       profile: options.profile,
@@ -1006,7 +1083,7 @@ const checkPermissions = (filePath, options) => {
     if (!validateBom(bomNSData.bomJson)) {
       process.exit(1);
     }
-    thoughtLog("BOM file looks valid. Thank you for using cdxgen!");
+    thoughtLog("✅ BOM file looks valid.");
   }
   thoughtEnd();
   // Automatically submit the bom data
@@ -1023,6 +1100,7 @@ const checkPermissions = (filePath, options) => {
   if (options.exportProto) {
     const protobomModule = await import("../lib/helpers/protobom.js");
     protobomModule.writeBinary(bomNSData.bomJson, options.protoBinFile);
+    thoughtLog("BOM file is also available in .proto format!");
   }
   if (options.print && bomNSData.bomJson && bomNSData.bomJson.components) {
     printSummary(bomNSData.bomJson);
@@ -1035,6 +1113,26 @@ const checkPermissions = (filePath, options) => {
     if (options.includeCrypto) {
       printTable(bomNSData.bomJson, ["cryptographic-asset"]);
       printDependencyTree(bomNSData.bomJson, "provides");
+    }
+  }
+  if (
+    (DEBUG_MODE || TRACE_MODE) &&
+    (!process.env?.CDXGEN_ALLOWED_HOSTS ||
+      !process.env?.CDXGEN_ALLOWED_COMMANDS)
+  ) {
+    let allowListSuggestion = "";
+    const envPrefix = isWin ? "set $env:" : "export ";
+    if (remoteHostsAccessed.size) {
+      allowListSuggestion = `${envPrefix}CDXGEN_ALLOWED_HOSTS="${Array.from(remoteHostsAccessed).join(",")}"\n`;
+    }
+    if (commandsExecuted.size) {
+      allowListSuggestion = `${allowListSuggestion}${envPrefix}CDXGEN_ALLOWED_COMMANDS="${Array.from(commandsExecuted).join(",")}"\n`;
+    }
+    if (allowListSuggestion) {
+      console.log(
+        "SECURE MODE: cdxgen supports allowlists for remote hosts and external commands. Set the following environment variables to get started.",
+      );
+      console.log(allowListSuggestion);
     }
   }
 })();

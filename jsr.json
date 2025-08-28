@@ -1,6 +1,6 @@
 {
   "name": "@cyclonedx/cdxgen",
-  "version": "11.2.3",
+  "version": "11.7.0",
   "exports": "./lib/cli/index.js",
   "include": ["*.js", "lib/**", "bin/**", "data/**", "types/**"],
   "exclude": [
@@ -10,6 +10,15 @@
     "ci/",
     "tools_config/",
     ".github/",
-    ".*"
+    ".*",
+    "devenv*",
+    "jest.config.js",
+    "docker-compose.yml",
+    "ADVANCED.md",
+    "pnpm-lock.yaml",
+    "biome.json",
+    "plugins",
+    "tsconfig.json",
+    "index.cjs"
   ]
 }
