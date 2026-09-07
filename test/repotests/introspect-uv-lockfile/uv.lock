@@ -1,5 +1,8 @@
+# A uv lock file no TOML parser can read. The break is an unterminated
+# basic string, which is invalid under either line ending, so a CRLF
+# checkout on Windows stays as unparseable as an LF one.
 version = 1
 requires-python = ">=3.12"
 
-[[package]
-name = "broken-toml"
+[[package]]
+name = "broken-toml
