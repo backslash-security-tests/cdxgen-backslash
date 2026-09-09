@@ -49,8 +49,8 @@ mirrors_on() {
     printf "registry=%s\n@jsr:registry=%s\n" "${NPM_REPO}" "${NPM_REPO}" >> "${NPMRC_FILE}"
   fi
   if [ -n "${PIP_CONFIG}" ]; then
-    mkdir "${HOME}/.pip/"
-    printf "${PIP_CONFIG}" > "${PIP_CONF_FILE}"
+    mkdir -p "${HOME}/.pip/"
+    printf '%b' "${PIP_CONFIG}" > "${PIP_CONF_FILE}"
   fi
   if [ -n "${REDHAT_REPO}" ] && [ -d /etc/yum.repos.d ]; then
     sed -i "s|${REDHAT_MIRROR_DEFAULT}|${REDHAT_REPO}|g" /etc/yum.repos.d/*

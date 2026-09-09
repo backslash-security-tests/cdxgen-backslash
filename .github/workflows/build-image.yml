@@ -38,17 +38,19 @@ jobs:
             const files = new Set(changed.filter(f => /^ci\/images\/.*\/?Dockerfile.*$/.test(f)));
 
             // The shared scripts under ci/images/common/ are baked into every
-            // image, so a change there must validate the full matrix.
+            // image that sources them, so a change there builds one
+            // representative per distro rather than the whole matrix. Between
+            // them these cover every branch in mirrors.sh - apk, apt, yum,
+            // npm, pip and rubygems - and both cdxgen-build.sh smoke-test and
+            // --no-optional paths. The full matrix still runs on push.
             if (changed.some(f => f.startsWith('ci/images/common/'))) {
-              const { data: tree } = await github.rest.git.getTree({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                tree_sha: context.payload.pull_request.head.sha,
-                recursive: 'true'
-              });
-              tree.tree
-                .filter(entry => entry.type === 'blob' && /^ci\/images\/.*\/?Dockerfile.*$/.test(entry.path))
-                .forEach(entry => files.add(entry.path));
+              [
+                'ci/images/alpine/Dockerfile.golang1.27',
+                'ci/images/alpine/Dockerfile.ruby3.4',
+                'ci/images/debian/Dockerfile.golang1.27',
+                'ci/images/debian/Dockerfile.ruby3.4',
+                'ci/images/temurin/Dockerfile.java25'
+              ].forEach(f => files.add(f));
             }
 
             core.setOutput("files", JSON.stringify([...files]));

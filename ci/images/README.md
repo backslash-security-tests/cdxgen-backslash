@@ -34,7 +34,10 @@ RUN chmod a-w -R /opt
   `corepack pnpm install:prod`, deletes the pnpm cache, runs the smoke tests and warms
   `NODE_COMPILE_CACHE`. It honours two env vars: `CDXGEN_INSTALL_NO_OPTIONAL=true`
   (pass `--no-optional` to pnpm) and `CDXGEN_SMOKE_TESTS` (extra shell snippet such as
-  `rbastgen --help && atom-tools --help`).
+  `rbastgen --help && atom-tools --help`, run with the same `PATH` the published
+  `cdxgen` stage exposes). The ruby images at 3.3 and below omit `rbastgen` from their
+  smoke tests: atom's ruby frontend only runs on ruby 3.4.x and 4.0.x, so the binary
+  reports a missing runtime on the older images.
 
 The multi-stage build keeps the final image lean: pnpm/corepack/npm caches and the
 toolchain needed only for the install never leak into the published `cdxgen` stage —
@@ -48,6 +51,12 @@ When adding a new image:
    line (keep the `@sha256:` digest pin; Renovate maintains it afterwards).
 2. Register the combination in the matrix in `.github/workflows/build-images.yml`.
 3. Add the tags to the table below.
+
+A pull request builds the Dockerfiles it changes. A change under `common/` instead
+builds the representative set listed in `.github/workflows/build-image.yml` — one plain
+and one ruby image per distro family, which between them exercise every branch of
+`mirrors.sh` and both `cdxgen-build.sh` paths. The full matrix runs on the nightly
+schedule and on pushes to `release/**` and tags.
 
 ## Custom Container Images
 
