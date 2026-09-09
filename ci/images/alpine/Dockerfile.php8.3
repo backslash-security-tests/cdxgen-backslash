@@ -1,7 +1,8 @@
 # Base-image
-FROM node:26.5.0-alpine3.23@sha256:0473b6671ff22c8eeb570c0e1e51408595d3171e73f8002c269b763f0a943149 AS base
+FROM php:8.3.33-alpine@sha256:afdf8b1fee58486ccc0dab5f30f634b86873d56dac985f71ba217945647c05ad AS base
 
 ARG ALPINE_REPO
+ARG COMPOSER_URL=https://getcomposer.org
 ARG NODEJS_DIST_URL
 ARG NPM_REPO
 ARG PIP_CONFIG
@@ -16,28 +17,55 @@ RUN set -e; \
     mirrors_on; \
     apk update \
  && apk add --no-cache \
+      autoconf \
+      bash \
+      bzip2 \
+      curl \
+      curl-dev \
       gcc \
+      git \
       g++ \
+      icu-dev \
+      libxml2-dev \
+      libzip-dev \
       make \
       musl-dev \
+      nodejs \
       npm \
+      oniguruma-dev \
       openjdk21 \
+      pkgconf \
       python3 \
       python3-dev \
       py3-pip \
       py3-virtualenv \
- && rm -f /usr/local/bin/yarn* \
- && npm install -g \
-      corepack \
-      npm \
+      re2c \
+ && npm install -g corepack \
  && /usr/bin/python --version \
  && /usr/bin/python -m pip install \
       --no-cache-dir \
       --target ${PYTHONPATH} \
       --upgrade \
         atom-tools \
+ && docker-php-ext-install \
+      curl \
+      intl \
+      mbstring \
+      mysqli \
+      pdo \
+      pdo_mysql \
+      xml \
+      zip \
+ && curl -L $COMPOSER_URL/installer \
+      | sed "s|\$uriScheme.'://getcomposer.org'|'$COMPOSER_URL'|g" \
+      | php \
+          -- \
+          --install-dir=/usr/local/bin \
+          --filename=composer \
  && node -v \
  && npm -v \
+ && php -v \
+ && composer --version \
  && rm -rf /var/cache/apk/* /tmp/common \
     && mirrors_off
 
@@ -51,6 +79,7 @@ ARG NPM_REPO
 ARG PIP_CONFIG
 
 ENV NODE_COMPILE_CACHE="/opt/cdxgen-node-cache"
+ENV CDXGEN_SMOKE_TESTS="phpastgen --help && atom-tools --help"
 
 COPY . /opt/cdxgen
 COPY ci/images/common/ /tmp/common/

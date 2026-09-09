@@ -26,31 +26,14 @@ ENV PATH=${PATH}:/usr/local/bin:/root/.local/bin:${NVM_DIR}/versions/node/v${NOD
 COPY ci/images/debian/install.sh /tmp/
 COPY ci/images/nuget /usr/lib/nuget
 
+COPY ci/images/common/mirrors.sh /tmp/common/mirrors.sh
+
 RUN set -e; \
-    if [ -n "$DEBIAN_REPO" ]; then \
-      if [ -f /etc/apt/sources.list ]; then \
-        sed -i "s|http://deb.debian.org/debian|$DEBIAN_REPO/debian|g" /etc/apt/sources.list; \
-        sed -i "s|http://security.debian.org/debian-security|$DEBIAN_REPO/debian-security|g" /etc/apt/sources.list; \
-      fi; \
-      if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
-        sed -i "s|http://deb.debian.org|$DEBIAN_REPO|g" /etc/apt/sources.list.d/debian.sources; \
-      fi \
-    fi; \
-    if [ -n "$NODEJS_DIST_URL" ]; then \
-      export "NVM_NODEJS_ORG_MIRROR=$NODEJS_DIST_URL"; \
-      printf "disturl=$NODEJS_DIST_URL\n" >> $HOME/.npmrc; \
-    fi; \
-    if [ -n "$NPM_REPO" ]; then \
-      export "COREPACK_NPM_REGISTRY=$NPM_REPO"; \
-      printf "registry=$NPM_REPO\n@jsr:registry=$NPM_REPO\n" >> $HOME/.npmrc; \
-    fi; \
+    . /tmp/common/mirrors.sh; \
+    mirrors_on; \
     if [ -n "$NUGET_REPO" ]; then \
       dotnet nuget remove source "nuget.org"; \
       dotnet nuget add source "$NUGET_REPO/index.json" --name "nexus"; \
-    fi; \
-    if [ -n "$PIP_CONFIG" ]; then \
-      mkdir $HOME/.pip/; \
-      printf "$PIP_CONFIG" > $HOME/.pip/pip.conf; \
     fi; \
     apt-get update \
  && apt-get install -qq -y --no-install-recommends \
@@ -91,7 +74,6 @@ RUN set -e; \
  && npm -v \
  && apt-get purge -y --auto-remove \
       -o APT::AutoRemove::RecommendsImportant=false \
- && rm -rf $HOME/.npmrc $HOME/.pip /var/lib/apt/lists/* \
  && mv /usr/lib/nuget/nuget.exe /usr/lib/nuget/NuGet.exe \
  && dotnet --list-sdks \
  && ARCH_NAME="$(dpkg --print-architecture)"; \
@@ -117,20 +99,27 @@ RUN set -e; \
  && if [ -n "$NUGET_REPO" ]; then \
       dotnet nuget remove source "nexus"; \
       dotnet nuget add source "https://api.nuget.org/v3/index.json" --name "nuget.org"; \
-    fi; \
-    if [ -n "$DEBIAN_REPO" ]; then \
-      if [ -f /etc/apt/sources.list ]; then \
-        sed -i "s|$DEBIAN_REPO/debian-security|http://security.debian.org/debian-security|g" /etc/apt/sources.list; \
-        sed -i "s|$DEBIAN_REPO/debian|http://deb.debian.org/debian|g" /etc/apt/sources.list; \
-      fi; \
-      if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
-        sed -i "s|$DEBIAN_REPO|http://deb.debian.org|g" /etc/apt/sources.list.d/debian.sources; \
-      fi \
-    fi
+    fi \
+ && rm -rf /var/lib/apt/lists/* /tmp/common \
+    && mirrors_off
 
 CMD ["/bin/bash"]
 
 
+# cdxgen-builder-image
+FROM base AS cdxgen-builder
+
+ARG DEBIAN_REPO
+ARG NODEJS_DIST_URL
+ARG NPM_REPO
+ARG PIP_CONFIG
+
+ENV NODE_COMPILE_CACHE="/opt/cdxgen-node-cache"
+
+COPY . /opt/cdxgen
+COPY ci/images/common/ /tmp/common/
+
+RUN sh /tmp/common/cdxgen-build.sh
 
 # cdxgen-image
 FROM base AS cdxgen
@@ -140,30 +129,17 @@ ENV CDXGEN_IN_CONTAINER=true \
     NODE_COMPILE_CACHE="/opt/cdxgen-node-cache" \
     PATH=${PATH}:${PYTHONPATH}/bin:/opt/cdxgen/node_modules/.bin
 
-COPY . /opt/cdxgen
+COPY --from=cdxgen-builder /opt/cdxgen /opt/cdxgen
+COPY --from=cdxgen-builder /opt/cdxgen-node-cache /opt/cdxgen-node-cache
+
+ARG DEBIAN_REPO
+ARG GITHUB_URL=https://github.com
+
+COPY ci/images/common/mirrors.sh /tmp/common/mirrors.sh
 
 RUN set -e; \
-    if [ -n "$DEBIAN_REPO" ]; then \
-      if [ -f /etc/apt/sources.list ]; then \
-        sed -i "s|http://deb.debian.org/debian|$DEBIAN_REPO/debian|g" /etc/apt/sources.list; \
-        sed -i "s|http://security.debian.org/debian-security|$DEBIAN_REPO/debian-security|g" /etc/apt/sources.list; \
-      fi; \
-      if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
-        sed -i "s|http://deb.debian.org|$DEBIAN_REPO|g" /etc/apt/sources.list.d/debian.sources; \
-      fi \
-    fi; \
-    if [ -n "$NODEJS_DIST_URL" ]; then \
-      export "NVM_NODEJS_ORG_MIRROR=$NODEJS_DIST_URL"; \
-      printf "disturl=$NODEJS_DIST_URL\n" >> $HOME/.npmrc; \
-    fi; \
-    if [ -n "$NPM_REPO" ]; then \
-      export "COREPACK_NPM_REGISTRY=$NPM_REPO"; \
-      printf "registry=$NPM_REPO\n@jsr:registry=$NPM_REPO\n" >> $HOME/.npmrc; \
-    fi; \
-    if [ -n "$PIP_CONFIG" ]; then \
-      mkdir $HOME/.pip/; \
-      printf "$PIP_CONFIG" > $HOME/.pip/pip.conf; \
-    fi; \
+    . /tmp/common/mirrors.sh; \
+    mirrors_on; \
     ARCH_NAME="$(dpkg --print-architecture)"; \
     case "${ARCH_NAME##*-}" in \
       'amd64' | 'x86_64') \
@@ -177,27 +153,12 @@ RUN set -e; \
          exit 1 \
          ;; \
     esac \
- && cd /opt/cdxgen \
- && corepack enable \
- && corepack pnpm install:prod \
- && corepack pnpm cache delete && rm -f /opt/cdxgen/pnpm-workspace.yaml \
  && curl -L ${GITHUB_URL}/owasp-dep-scan/dosai/releases/latest/download/Dosai${DOSAI_ARCH_SUFFIX} \
       -o /usr/local/bin/dosai \
  && chmod +x /usr/local/bin/dosai \
  && dosai --help \
- && mkdir -p ${NODE_COMPILE_CACHE} \
- && node /opt/cdxgen/bin/cdxgen.js --help \
- && rm -rf $HOME/.npmrc $HOME/.pip /root/.cache/node \
- && chmod a-w -R /opt \
- && if [ -n "$DEBIAN_REPO" ]; then \
-      if [ -f /etc/apt/sources.list ]; then \
-        sed -i "s|$DEBIAN_REPO/debian-security|http://security.debian.org/debian-security|g" /etc/apt/sources.list; \
-        sed -i "s|$DEBIAN_REPO/debian|http://deb.debian.org/debian|g" /etc/apt/sources.list; \
-      fi; \
-      if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
-        sed -i "s|$DEBIAN_REPO|http://deb.debian.org|g" /etc/apt/sources.list.d/debian.sources; \
-      fi \
-    fi
+ && rm -rf /tmp/common \
+ && mirrors_off
 
 WORKDIR /app
 

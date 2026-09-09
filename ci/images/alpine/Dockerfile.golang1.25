@@ -1,13 +1,12 @@
 # Base-image
-FROM node:26.5.0-alpine3.23@sha256:0473b6671ff22c8eeb570c0e1e51408595d3171e73f8002c269b763f0a943149 AS base
+FROM golang:1.25.14-alpine3.23@sha256:27b3069b25647beacd3745b0b2c83e2f9b8d3935455a32cd4531236ee1c960e0 AS base
 
 ARG ALPINE_REPO
 ARG NODEJS_DIST_URL
 ARG NPM_REPO
 ARG PIP_CONFIG
 
-ENV PATH=${PATH}:/usr/local/bin \
-    PYTHONPATH=/opt/pypi
+ENV PATH=${PATH}:/usr/local/bin
 
 COPY ci/images/common/mirrors.sh /tmp/common/mirrors.sh
 
@@ -16,26 +15,9 @@ RUN set -e; \
     mirrors_on; \
     apk update \
  && apk add --no-cache \
-      gcc \
-      g++ \
-      make \
-      musl-dev \
+      nodejs \
       npm \
-      openjdk21 \
-      python3 \
-      python3-dev \
-      py3-pip \
-      py3-virtualenv \
- && rm -f /usr/local/bin/yarn* \
- && npm install -g \
-      corepack \
-      npm \
- && /usr/bin/python --version \
- && /usr/bin/python -m pip install \
-      --no-cache-dir \
-      --target ${PYTHONPATH} \
-      --upgrade \
-        atom-tools \
+ && npm install -g corepack \
  && node -v \
  && npm -v \
  && rm -rf /var/cache/apk/* /tmp/common \
@@ -62,7 +44,7 @@ FROM base AS cdxgen
 
 ENV CDXGEN_IN_CONTAINER=true \
     NODE_COMPILE_CACHE="/opt/cdxgen-node-cache" \
-    PATH=${PATH}:${PYTHONPATH}/bin:/opt/cdxgen/node_modules/.bin
+    PATH=${PATH}:/opt/cdxgen/node_modules/.bin
 
 COPY --from=cdxgen-builder /opt/cdxgen /opt/cdxgen
 COPY --from=cdxgen-builder /opt/cdxgen-node-cache /opt/cdxgen-node-cache
