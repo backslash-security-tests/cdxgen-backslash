@@ -1,5 +1,5 @@
 # Base-image
-FROM node:26.8.1-bookworm@sha256:9f94d34c787165dca03b74e5bf9c3bf90e8de79b19aa3d87fe1fa1694bf75c89 AS base
+FROM node:26.8.1-trixie@sha256:f5d1cc40abc10c2843339a2134d07817cf33c405cb16bfd052b0ed790254c3a3 AS base
 
 ARG DEBIAN_REPO
 ARG NODEJS_DIST_URL
