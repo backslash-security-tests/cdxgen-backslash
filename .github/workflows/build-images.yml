@@ -96,6 +96,8 @@ jobs:
 
           - lang: golang1.24
             distro: alpine
+          - lang: golang1.25
+            distro: alpine
           - lang: golang1.26
             distro: alpine
           - lang: golang1.27
@@ -105,6 +107,9 @@ jobs:
             cdxgen-image:
               additional-image: cdxgen-alpine-golang
           - lang: golang1.24
+            distro: debian
+
+          - lang: golang1.25
             distro: debian
 
           - lang: golang1.26
@@ -143,10 +148,15 @@ jobs:
 
           - lang: java24
             distro: alpine
+          - lang: java25
+            distro: alpine
           - lang: java26
             distro: alpine
 
           - lang: java24
+            distro: temurin
+            fix-qemu: true
+          - lang: java25
             distro: temurin
             fix-qemu: true
           - lang: java26
@@ -162,14 +172,21 @@ jobs:
           - lang: node26
             distro: alpine
 
-          - lang: php8.3
+          - lang: node24
             distro: debian
-            runner: ubuntu-latest
+          - lang: node26
+            distro: debian
 
+          - lang: php8.3
+            distro: alpine
           - lang: php8.4
             distro: alpine
           - lang: php8.5
             distro: alpine
+
+          - lang: php8.3
+            distro: debian
+            runner: ubuntu-latest
 
           - lang: php8.4
             distro: debian
@@ -204,6 +221,17 @@ jobs:
 
           - lang: python3.13
             distro: alpine
+          - lang: python3.12
+            distro: alpine
+          - lang: python3.14
+            distro: alpine
+
+          - lang: python3.12
+            distro: debian
+          - lang: python3.13
+            distro: debian
+          - lang: python3.14
+            distro: debian
 
           - lang: ruby2.5
             fix-qemu: true
@@ -219,6 +247,9 @@ jobs:
             distro: debian
             runner: ubuntu-latest
 
+          - lang: ruby3.3
+            distro: alpine
+
           - lang: ruby3.4
             distro: debian
           - lang: ruby4
@@ -231,6 +262,15 @@ jobs:
 
           - lang: rust1
             distro: alpine
+
+          - lang: elixir1
+            distro: alpine
+
+          - lang: elixir1
+            distro: debian
+
+          - lang: dart3
+            distro: debian
 
           - lang: rust1
             distro: debian

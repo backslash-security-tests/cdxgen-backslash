@@ -146,7 +146,6 @@ RUN set -e; \
  && corepack pnpm cache delete && rm -f /opt/cdxgen/pnpm-workspace.yaml \
  && mkdir -p ${NODE_COMPILE_CACHE} \
  && node /opt/cdxgen/bin/cdxgen.js --help \
- && rbastgen --help \
  && rm -rf ${CDXGEN_GEM_HOME} \
  && mkdir -p ${CDXGEN_GEM_HOME} \
  && rm -rf $HOME/.npmrc $HOME/.pip /root/.cache/node \

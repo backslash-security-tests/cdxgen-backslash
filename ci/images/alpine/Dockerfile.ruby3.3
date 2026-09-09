@@ -1,10 +1,11 @@
 # Base-image
-FROM node:26.5.0-alpine3.23@sha256:0473b6671ff22c8eeb570c0e1e51408595d3171e73f8002c269b763f0a943149 AS base
+FROM ruby:3.3.12-alpine@sha256:2f763b37070564bb00b736f1d4dba6e8f8d203b5f93b94463879fd8d79966f28 AS base
 
 ARG ALPINE_REPO
 ARG NODEJS_DIST_URL
 ARG NPM_REPO
 ARG PIP_CONFIG
+ARG RUBYGEMS_REPO
 
 ENV PATH=${PATH}:/usr/local/bin \
     PYTHONPATH=/opt/pypi
@@ -16,20 +17,25 @@ RUN set -e; \
     mirrors_on; \
     apk update \
  && apk add --no-cache \
+      bash \
+      build-base \
+      bzip2 \
+      curl \
       gcc \
+      git \
       g++ \
       make \
       musl-dev \
+      nodejs \
       npm \
       openjdk21 \
       python3 \
       python3-dev \
       py3-pip \
       py3-virtualenv \
- && rm -f /usr/local/bin/yarn* \
- && npm install -g \
-      corepack \
-      npm \
+      ruby-dev \
+      tar \
+ && npm install -g corepack \
  && /usr/bin/python --version \
  && /usr/bin/python -m pip install \
       --no-cache-dir \
@@ -38,6 +44,11 @@ RUN set -e; \
         atom-tools \
  && node -v \
  && npm -v \
+ && java -version \
+ && python3 --version \
+ && gem install \
+      bundler \
+      cocoapods \
  && rm -rf /var/cache/apk/* /tmp/common \
     && mirrors_off
 
@@ -49,8 +60,10 @@ ARG ALPINE_REPO
 ARG NODEJS_DIST_URL
 ARG NPM_REPO
 ARG PIP_CONFIG
+ARG RUBYGEMS_REPO
 
 ENV NODE_COMPILE_CACHE="/opt/cdxgen-node-cache"
+ENV CDXGEN_SMOKE_TESTS="atom-tools --help"
 
 COPY . /opt/cdxgen
 COPY ci/images/common/ /tmp/common/
@@ -60,14 +73,18 @@ RUN sh /tmp/common/cdxgen-build.sh
 # cdxgen-image
 FROM base AS cdxgen
 
-ENV CDXGEN_IN_CONTAINER=true \
+ENV CDXGEN_GEM_HOME="/tmp/gems" \
+    CDXGEN_IN_CONTAINER=true \
     NODE_COMPILE_CACHE="/opt/cdxgen-node-cache" \
     PATH=${PATH}:${PYTHONPATH}/bin:/opt/cdxgen/node_modules/.bin
 
 COPY --from=cdxgen-builder /opt/cdxgen /opt/cdxgen
 COPY --from=cdxgen-builder /opt/cdxgen-node-cache /opt/cdxgen-node-cache
 
-RUN chmod a-w -R /opt
+RUN set -e; \
+    rm -rf ${CDXGEN_GEM_HOME} \
+ && mkdir -p ${CDXGEN_GEM_HOME} \
+ && chmod a-w -R /opt
 
 WORKDIR /app
 

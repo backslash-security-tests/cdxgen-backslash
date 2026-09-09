@@ -1,6 +1,7 @@
 **
 !.pnpmfile.cjs
 !bin/*
+!ci/images/common/**
 !ci/images/debian/install.sh
 !ci/images/nuget/**
 !data/*

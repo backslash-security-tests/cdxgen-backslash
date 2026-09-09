@@ -1,12 +1,12 @@
 # Base-image
-FROM node:26.5.0-alpine3.23@sha256:0473b6671ff22c8eeb570c0e1e51408595d3171e73f8002c269b763f0a943149 AS base
+FROM eclipse-temurin:25.0.4_7-jdk-alpine@sha256:09349d79941fd53bb3d487b393ca118d8853c08c09193f416fe6a8718df9e732 AS base
 
 ARG ALPINE_REPO
 ARG NODEJS_DIST_URL
 ARG NPM_REPO
 ARG PIP_CONFIG
 
-ENV PATH=${PATH}:/usr/local/bin \
+ENV PATH=${PATH}:/usr/local/bin:/root/.local/bin \
     PYTHONPATH=/opt/pypi
 
 COPY ci/images/common/mirrors.sh /tmp/common/mirrors.sh
@@ -15,29 +15,38 @@ RUN set -e; \
     . /tmp/common/mirrors.sh; \
     mirrors_on; \
     apk update \
- && apk add --no-cache \
+ && apk add --no-cache --upgrade \
+      bash \
+      curl \
+      expat \
       gcc \
+      git \
+      gradle \
       g++ \
       make \
+      maven \
       musl-dev \
+      nodejs \
       npm \
-      openjdk21 \
       python3 \
       python3-dev \
       py3-pip \
       py3-virtualenv \
- && rm -f /usr/local/bin/yarn* \
- && npm install -g \
-      corepack \
-      npm \
- && /usr/bin/python --version \
- && /usr/bin/python -m pip install \
+      tar \
+ && npm install -g corepack \
+ && python3 --version \
+ && python3 -m pip install \
+      --break-system-packages \
       --no-cache-dir \
       --target ${PYTHONPATH} \
       --upgrade \
         atom-tools \
+        pipenv \
  && node -v \
  && npm -v \
+ && mvn -v \
+ && gradle -v \
+ && python3 --version \
  && rm -rf /var/cache/apk/* /tmp/common \
     && mirrors_off
 

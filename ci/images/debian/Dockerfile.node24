@@ -1,51 +1,58 @@
 # Base-image
-FROM node:26.5.0-alpine3.23@sha256:0473b6671ff22c8eeb570c0e1e51408595d3171e73f8002c269b763f0a943149 AS base
+FROM node:24.20.0-trixie@sha256:f7d34e58713740f9eef9092c0bd6ff10369d132f7238399a4b270f16d47fa608 AS base
 
-ARG ALPINE_REPO
+ARG DEBIAN_REPO
 ARG NODEJS_DIST_URL
 ARG NPM_REPO
 ARG PIP_CONFIG
 
-ENV PATH=${PATH}:/usr/local/bin \
-    PYTHONPATH=/opt/pypi
+ENV PYTHONPATH=/opt/pypi
+ENV PATH=${PATH}:/usr/local/bin:/root/.local/bin
 
 COPY ci/images/common/mirrors.sh /tmp/common/mirrors.sh
 
 RUN set -e; \
     . /tmp/common/mirrors.sh; \
     mirrors_on; \
-    apk update \
- && apk add --no-cache \
-      gcc \
-      g++ \
+    apt-get update \
+ && apt-get install -qq -y --no-install-recommends \
+      bash \
+      bzip2 \
+      curl \
+      gawk \
+      git-core \
       make \
-      musl-dev \
-      npm \
-      openjdk21 \
+      unzip \
+      zip \
+ && apt-get install -qq -y \
+      locales \
+      openjdk-21-jdk-headless \
       python3 \
       python3-dev \
-      py3-pip \
-      py3-virtualenv \
- && rm -f /usr/local/bin/yarn* \
- && npm install -g \
-      corepack \
-      npm \
- && /usr/bin/python --version \
- && /usr/bin/python -m pip install \
+      python3-pip \
+      python3-venv \
+ && npm install -g corepack \
+ && python3 --version \
+ && python3 -m pip install \
       --no-cache-dir \
       --target ${PYTHONPATH} \
       --upgrade \
         atom-tools \
  && node -v \
  && npm -v \
- && rm -rf /var/cache/apk/* /tmp/common \
+ && java -version \
+ && apt-get purge -y --auto-remove \
+      -o APT::AutoRemove::RecommendsImportant=false \
+ && rm -rf /var/lib/apt/lists/* /tmp/common \
     && mirrors_off
+
+CMD ["/bin/bash"]
 
 
 # cdxgen-builder-image
 FROM base AS cdxgen-builder
 
-ARG ALPINE_REPO
+ARG DEBIAN_REPO
 ARG NODEJS_DIST_URL
 ARG NPM_REPO
 ARG PIP_CONFIG

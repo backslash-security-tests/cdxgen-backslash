@@ -1,5 +1,5 @@
 # Base-image
-FROM node:26.5.0-alpine3.23@sha256:0473b6671ff22c8eeb570c0e1e51408595d3171e73f8002c269b763f0a943149 AS base
+FROM elixir:1.20.4-otp-29-alpine@sha256:5f967f23eade3de57cada6773f959677faba352bb5c063d46629726738dbdd28 AS base
 
 ARG ALPINE_REPO
 ARG NODEJS_DIST_URL
@@ -16,20 +16,17 @@ RUN set -e; \
     mirrors_on; \
     apk update \
  && apk add --no-cache \
-      gcc \
-      g++ \
-      make \
-      musl-dev \
+      bash \
+      build-base \
+      git \
+      nodejs \
       npm \
-      openjdk21 \
       python3 \
       python3-dev \
       py3-pip \
       py3-virtualenv \
- && rm -f /usr/local/bin/yarn* \
- && npm install -g \
-      corepack \
-      npm \
+      tar \
+ && npm install -g corepack \
  && /usr/bin/python --version \
  && /usr/bin/python -m pip install \
       --no-cache-dir \
@@ -38,6 +35,7 @@ RUN set -e; \
         atom-tools \
  && node -v \
  && npm -v \
+ && elixir --version \
  && rm -rf /var/cache/apk/* /tmp/common \
     && mirrors_off
 
