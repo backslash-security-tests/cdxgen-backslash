@@ -53,6 +53,22 @@ export declare function createCaxaBom(path: string, options: Object): Promise<Ob
  */
 export declare function createVscodeExtensionBom(path: string, options: Object): Promise<Object>;
 /**
+ * Create a BOM that catalogs agentic CLI tools installed for the current user
+ * (for example Kiro CLI, zcode, opencode, and Claude Code), along with the
+ * agents, plugins, and providers they define.
+ *
+ * The scan is read-only and value-redacting: it records tool versions where a
+ * declarative source exists, plus structural counts, but never reads
+ * credentials, transcripts, session logs, or telemetry.
+ *
+ * @param {string} path Positional input. A host scan does not read a project
+ *   tree, so an explicit path other than the current directory is rejected
+ *   rather than silently ignored.
+ * @param {Object} options Parse options from the CLI
+ * @returns {Promise<Object>} Promise resolving to BOM data
+ */
+export declare function createAgenticBom(path: string, options: Object): Promise<Object>;
+/**
  * Function to create BOM for Electron ASAR archives.
  *
  * @param {string} path to a single archive or a directory to scan

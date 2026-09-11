@@ -100,6 +100,8 @@ When reviewing a Hugging Face-derived component, pay special attention to:
 - require HTTPS for remote AI endpoints
 - record quantization and context-window sizing for large local models before rollout
 - verify whether gated-access prompts, Hub popularity, or hosted-inference hints change your release review or approval path
+- prefer safetensors over pickle checkpoints, and treat any `cdx:ai:unsafeDeserialization=true` model artifact as untrusted until its provenance is verified
+- plan migration away from MCP features deprecated by the 2026-07-28 specification (legacy SSE transport, dynamic client registration, sampling, logging, roots) and review MCPB bundles that inject secret configuration as environment variables
 
 ## Related docs
 

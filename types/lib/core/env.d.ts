@@ -109,6 +109,7 @@ export declare const PROJECT_TYPE_ALIASES: {
     js: string[];
     mcp: string[];
     "ai-skill": string[];
+    agentic: string[];
     py: string[];
     go: string[];
     rust: string[];

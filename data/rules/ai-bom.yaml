@@ -266,3 +266,47 @@
       "parameterCount": $prop($, 'cdx:ai:parameterCount'),
       "source": $prop($, 'cdx:ai:source')
     }
+
+- id: AIS-003
+  name: "Model artifact uses unsafe pickle deserialization"
+  description: "PyTorch pickle model artifacts (.bin/.pt/.pth/.ckpt) execute arbitrary code when loaded, so an untrusted or unverified artifact can run attacker-controlled code in the loading process."
+  severity: high
+  category: ai-security
+  dry-run-support: full
+  attack:
+    tactics: [TA0002]
+    techniques: [T1059, T1195.002]
+  standards:
+    owasp-ai-top-10:
+      - "LLM05: Supply Chain Vulnerabilities"
+      - "LLM03:2025 Supply Chain"
+    owasp-agentic-top-10-2026:
+      - "Agentic Supply Chain"
+    eu-ai-act:
+      - "Accuracy, robustness and cybersecurity"
+      - "Technical documentation and traceability"
+    eu-cra:
+      - "Software supply chain visibility"
+      - "Protection against untrusted code execution"
+    nist-ai-rmf:
+      - "Map"
+      - "Manage"
+    nist-ssdf:
+      - "Verify provenance of model artifacts before loading"
+  condition: |
+    components[
+      type = 'machine-learning-model'
+      and $prop($, 'cdx:ai:unsafeDeserialization') = 'true'
+    ]
+  location: |
+    {
+      "bomRef": $."bom-ref"
+    }
+  message: "Model artifact '{{ name }}' loads via unsafe pickle deserialization"
+  mitigation: "Prefer safetensors over pickle checkpoints, or verify artifact provenance and load pickle models only from trusted sources in a sandbox."
+  evidence: |
+    {
+      "artifactFormat": $prop($, 'cdx:ai:artifactFormat'),
+      "source": $prop($, 'cdx:ai:source'),
+      "quantizationMethod": $prop($, 'cdx:ai:quantizationMethod')
+    }
