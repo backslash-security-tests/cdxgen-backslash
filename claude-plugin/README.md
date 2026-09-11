@@ -25,8 +25,8 @@ npm i -g @cdxgen/cdxgen
 
 | Requirement | Detail                                                            |
 | ----------- | ----------------------------------------------------------------- |
-| Node.js     | >= 20 (>= 22.21 recommended for native proxy support)             |
-| Java        | >= 21, **mandatory** for C/C++/Python/CBOM analysis               |
+| Node.js     | >= 24                                                             |
+| Java        | Only on jar-based atom triples (darwin-amd64, windows-arm64, linux-arm64-musl): >= 23 |
 | Container   | `ghcr.io/cdxgen/cdxgen:master` — build tools preinstalled         |
 
 Optional enrichment: `@cdxgen/cdxgen-plugins-bin` (Trivy, osquery, `golem`,
@@ -67,8 +67,10 @@ constraints that matter when an agent runs cdxgen:
 - **Confirm before publishing.** Uploads to Dependency-Track or TEA are outward-facing actions.
 - **Credentials stay out of the transcript.** API keys and signing keys go through the environment, never a pasted value.
 
-Java's silent-failure mode is called out wherever it applies: below Java 21,
+Atom's Java failure mode is called out wherever it applies: on the jar-based
+triples (darwin-amd64, windows-arm64, linux-arm64-musl), Java below 23 makes
 C/C++/Python/CBOM scans freeze or return thin BOMs rather than erroring.
+Native-binary platforms need no JDK at all.
 
 ## Development
 

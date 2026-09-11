@@ -10,9 +10,9 @@ reaching for flags.
 | `cdxgen`        | —                                                                                | The universal generator for source, containers, OS |
 | `obom`          | `cdxgen -t os`                                                                   | Live operating-system inventory                    |
 | `hbom`          | dedicated command (library path: `cdxgen -t hbom`)                               | Live host hardware inventory                       |
-| `cbom`          | `cdxgen --include-crypto --include-formulation --evidence`                        | Cryptographic BOM                                  |
+| `cbom`          | `cdxgen --include-crypto --evidence --deep`                                      | Cryptographic BOM                                  |
 | `aibom`         | `cdxgen -t ai`                                                                   | AI/ML model and service inventory                  |
-| `saasbom`       | `cdxgen --evidence`                                                              | Service and endpoint inventory with evidence       |
+| `saasbom`       | `cdxgen --evidence --deep`                                                        | Service and endpoint inventory with evidence       |
 | `spdxgen`       | `cdxgen --format spdx`                                                           | Direct SPDX 3.0.1 JSON-LD output                   |
 | `cdxgen-secure` | `cdxgen` under `CDXGEN_SECURE_MODE`                                              | Permission-restricted generation                   |
 | `tracebom`      | dedicated command                                                                | Dynamic runtime-trace BOM from a running process   |
@@ -33,13 +33,14 @@ reaching for flags.
 
 | Requirement | Detail                                                                        |
 | ----------- | ----------------------------------------------------------------------------- |
-| Runtime     | Node.js >= 20 (>= 22.21 recommended for native proxy support)                 |
-| Java        | >= 21, mandatory for C/C++/Python/CBOM analysis                               |
+| Runtime     | Node.js >= 24                                                                  |
+| Java        | Only on jar-based atom triples (darwin-amd64, windows-arm64, linux-arm64-musl): >= 23 |
 | Install     | `npm i -g @cdxgen/cdxgen`, or run ad hoc with `pnpm dlx @cdxgen/cdxgen`       |
 | Container   | `docker run --rm -v $(pwd):/app:rw -t ghcr.io/cdxgen/cdxgen:master /app`       |
 
-Prefer the container image when the host lacks Java 21 or the project's build
-toolchain, or when the user wants isolation from `--install-deps`.
+Prefer the container image when the host is a jar-based atom triple without
+Java 23, lacks the project's build toolchain, or when the user wants isolation
+from `--install-deps`.
 
 ## Optional companion packages
 

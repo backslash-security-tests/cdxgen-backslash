@@ -57,7 +57,7 @@ saasbom /absolute/path/to/project -o /absolute/path/to/saasbom.json
 `1.7`. Equivalent from source:
 
 ```bash
-cdxgen --evidence -o /absolute/path/to/bom.json /absolute/path/to/project
+cdxgen --evidence --deep -o /absolute/path/to/bom.json /absolute/path/to/project
 ```
 
 **Be candid about SaaSBOM's success rate.** Service and endpoint collection

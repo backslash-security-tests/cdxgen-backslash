@@ -12,7 +12,6 @@ In this lesson, we will learn about generating an SBOM with reachable evidence f
 Ensure the following tools are installed.
 
 ```
-Java >= 21
 Node.js >= 24
 ```
 

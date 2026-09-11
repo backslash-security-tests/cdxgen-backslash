@@ -22,7 +22,7 @@ By the end, you will be able to:
 
 ## Pre-requisites
 
-- Node.js ≥ 20
+- Node.js ≥ 24
 - OpenSSL (for generating keys)
 - `@cdxgen/cdxgen` globally installed (gives you `cdxgen`, `cdx-sign`,
   `cdx-verify`, and `cdx-validate`):
