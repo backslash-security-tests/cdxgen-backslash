@@ -180,8 +180,10 @@ cdxgen addresses this in two ways:
    a `Filename` identity method. Imported symbols are recorded under
    `internal:ImportedSymbols`.
 
-This step needs Java 21 for atom, which is why it is gated behind `--deep` and
-skipped entirely for container and OS scans.
+This step uses the atom companion — a native binary on most platforms, needing
+Java 23+ only on the jar-based darwin-amd64, windows-arm64, and linux-arm64-musl
+triples — which is why it is gated behind `--deep` and skipped entirely for
+container and OS scans.
 
 ## 7) CI sketch
 

@@ -15,7 +15,7 @@ By the end, you will be able to:
 
 ## Pre-requisites
 
-- Node.js ≥ 20
+- Node.js ≥ 24
 - `@cdxgen/cdxgen` installed
 
 ```shell

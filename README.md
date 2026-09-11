@@ -497,14 +497,13 @@ Use repeated `--component-type` values to include only selected CycloneDX compon
 cdxgen -t docker alpine:3.20 --spec-version 1.6 --component-type library --component-type data
 ```
 
-To generate SBOM for C or Python, ensure Java >= 21 is installed.
+To generate SBOM for C or Python, cdxgen uses the bundled atom companion. On linux-amd64, linux-arm64 (glibc), linux-amd64-musl, darwin-arm64, and windows-amd64, atom ships as a native binary and needs no JDK. Only the jar-based triples (darwin-amd64, windows-arm64, and linux-arm64-musl) run atom on the JVM.
 
 ```shell
-# Install java >= 21
 cdxgen -t c -o bom.json
 ```
 
-NOTE: cdxgen is known to freeze with Java 8 or 11, so ensure >= 21 is installed and JAVA_HOME environment variable is configured correctly. If in doubt, use the cdxgen container image.
+NOTE: On the jar-based triples, atom requires Java >= 23 and is known to freeze with Java 8 or 11, so ensure a suitable version is installed and the JAVA_HOME environment variable is configured correctly. If in doubt, use the cdxgen container image.
 
 ## Universal SBOM
 

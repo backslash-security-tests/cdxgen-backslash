@@ -9,9 +9,12 @@ Use this skill when the user wants to know what cryptography a codebase or host
 actually uses — for post-quantum migration planning, crypto policy compliance,
 or finding weak primitives.
 
-Read [reference/safety.md](../../reference/safety.md) first. **Java >= 21 is
-mandatory for CBOM analysis** and a lower version fails silently rather than
-erroring, so verify `java -version` before interpreting a thin CBOM.
+Read [reference/safety.md](../../reference/safety.md) first. CBOM source
+analysis uses the atom companion, which needs **no JDK on the native-binary
+platforms** (linux-amd64, linux-arm64 glibc, linux-amd64-musl, darwin-arm64,
+windows-amd64). Only the jar-based triples (darwin-amd64, windows-arm64,
+linux-arm64-musl) require **Java >= 23** and fail silently below it, so verify
+`java -version` there before interpreting a thin CBOM.
 
 ## Generate
 

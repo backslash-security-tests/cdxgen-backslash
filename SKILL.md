@@ -2,7 +2,7 @@
 
 ## Description
 
-`cdxgen` is a universal, polyglot CLI tool that generates valid CycloneDX Bill-of-Materials (BOM) documents in JSON format. It produces SBOM, HBOM, CBOM, OBOM, SaaSBOM, VDR, and CDXA outputs for source code, containers, VMs, live operating systems, and supported hardware hosts. Supports CycloneDX spec versions `1.4`–`1.7` (default: `1.7`, with HBOM currently targeting `1.7`). cdxgen features a best-in-class, native **JSON Signature Format (JSF)** implementation for BOM signing, providing robust authenticity and non-repudiation capabilities. Unlike basic signing tools, our implementation fully supports granular signatures (signing individual components, services, and annotations), parallel Multi-Signatures (`signers`), and sequential Signature Chains (`chain`). When the optional companion binaries from `@cdxgen/cdxgen-plugins-bin` are available, cdxgen also enriches container/rootfs and live-OS scans with Trivy/osquery-powered metadata, Linux GTFOBins runtime context, platform trust posture, and Go Evinse evidence through the `golem` helper. HBOM collection is dynamically provided by the optional `@cdxgen/cdx-hbom` library on supported `darwin/arm64`, `linux/amd64`, and `linux/arm64` hosts. CBOM mode can also extract cryptographic algorithm inventory from JavaScript and TypeScript source through lightweight AST analysis.
+`cdxgen` is a universal, polyglot CLI tool that generates valid CycloneDX Bill-of-Materials (BOM) documents in JSON format. It produces SBOM, HBOM, CBOM, OBOM, SaaSBOM, VDR, and CDXA outputs for source code, containers, VMs, live operating systems, and supported hardware hosts. Supports CycloneDX spec versions `1.6`–`2.0` (default: `1.7`, with HBOM currently targeting `1.7`; `1.4`/`1.5` are rejected as generation targets). cdxgen features a best-in-class, native **JSON Signature Format (JSF)** implementation for BOM signing, providing robust authenticity and non-repudiation capabilities. Unlike basic signing tools, our implementation fully supports granular signatures (signing individual components, services, and annotations), parallel Multi-Signatures (`signers`), and sequential Signature Chains (`chain`). When the optional companion binaries from `@cdxgen/cdxgen-plugins-bin` are available, cdxgen also enriches container/rootfs and live-OS scans with Trivy/osquery-powered metadata, Linux GTFOBins runtime context, platform trust posture, and Go Evinse evidence through the `golem` helper. HBOM collection is dynamically provided by the optional `@cdxgen/cdx-hbom` library on supported `darwin/arm64`, `linux/amd64`, and `linux/arm64` hosts. CBOM mode can also extract cryptographic algorithm inventory from JavaScript and TypeScript source through lightweight AST analysis.
 
 ## ✅ When to Invoke
 
@@ -15,12 +15,12 @@
 
 ## 📦 Prerequisites & Installation
 
-| Requirement   | Detail                                                                                                   |
-| ------------- | -------------------------------------------------------------------------------------------------------- |
-| **Runtime**   | Node.js ≥ 20 (≥ 22.21 recommended for native proxy support)                                              |
-| **Java**      | ≥ 21 required for C/C++/Python/CBOM analysis. Fails silently or produces incomplete BOMs with Java 8/11. |
-| **Install**   | `npm i -g @cdxgen/cdxgen` or `pnpm dlx @cdxgen/cdxgen`                                                   |
-| **Container** | `docker run --rm -v $(pwd):/app:rw -t ghcr.io/cdxgen/cdxgen:master /app`                                 |
+| Requirement   | Detail                                                                                                                                                                                                                                                                                                          |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Runtime**   | Node.js ≥ 24                                                                                                                                                                                                                                                                                                    |
+| **Java**      | Not required on most platforms: atom ships as a native binary on linux-amd64, linux-arm64 (glibc), linux-amd64-musl, darwin-arm64, and windows-amd64. Only the jar-based triples (darwin-amd64, windows-arm64, linux-arm64-musl) need Java ≥ 23, where older versions fail silently or produce incomplete BOMs. |
+| **Install**   | `npm i -g @cdxgen/cdxgen` or `pnpm dlx @cdxgen/cdxgen`                                                                                                                                                                                                                                                          |
+| **Container** | `docker run --rm -v $(pwd):/app:rw -t ghcr.io/cdxgen/cdxgen:master /app`                                                                                                                                                                                                                                        |
 
 Notes:
 
@@ -203,7 +203,7 @@ These indicators affect **which packages are audited first**, not the final seve
 2. **ALWAYS** use absolute paths for `[path]` and `-o`. Relative paths or paths with spaces cause external tool failures.
 3. **NEVER** run as `root` when `CDXGEN_SECURE_MODE=true`. Node.js permissions will reject wildcard FS/child grants.
 4. **DO NOT** auto-invoke `--install-deps` (default: `true`) in CI, containers, or air-gapped environments. Use `--no-install-deps` or `--lifecycle pre-build`.
-5. **Java ≥ 21 is mandatory** for C, C++, Python, and CBOM scans. Lower versions cause silent freezes.
+5. **Java is only needed on jar-based atom platforms.** C/C++, Python, and CBOM source analysis uses the atom companion, which ships as a native binary (no JDK) on linux-amd64, linux-arm64 (glibc), linux-amd64-musl, darwin-arm64, and windows-amd64. On darwin-amd64, windows-arm64, and linux-arm64-musl it runs on the JVM and requires Java ≥ 23; older versions cause silent freezes.
 6. **NEVER** construct PackageURL (purl) strings manually in prompts or scripts. Let `cdxgen` handle resolution.
 7. **Secure Mode** (`CDXGEN_SECURE_MODE=true`) requires explicit Node.js `--permission` flags. Do not grant `--allow-fs-read="*"` or `--allow-fs-write="*"`.
 8. **Environment Variables** must use `CDXGEN_` prefix (e.g., `CDXGEN_TYPE=java`, `CDXGEN_FETCH_LICENSE=true`).
@@ -228,20 +228,20 @@ These indicators affect **which packages are audited first**, not the final seve
 
 ## 🤖 Agent Execution Guidelines
 
-| Scenario                      | Recommended Action                                                                                                                                                                                                    |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Command fails silently**    | Check Java version (`java -version`), missing build tools, or secure mode restrictions. Suggest container image or `--no-install-deps`.                                                                               |
-| **Network/registry timeouts** | Set `HTTP_PROXY`/`HTTPS_PROXY`. Node ≥ 22.21 auto-detects. Do not auto-retry without user confirmation.                                                                                                               |
-| **Large mono-repos**          | Use `--no-recurse` + explicit `-t <lang>` or `--exclude-type` to limit scope.                                                                                                                                         |
-| **Server mode invocation**    | Poll `/health` first. POST to `/sbom` with JSON body or query params. Pass `GITHUB_TOKEN` via env if scanning private repos.                                                                                          |
-| **Aliases**                   | `obom` = `cdxgen -t os`<br>`cbom` = `cdxgen --include-crypto --evidence --deep` (spec version defaults to `1.7`). `cbom` rejects `--component-type` and `-t os`; use `obom` for OS inventory                          |
-| **HBOM**                      | `hbom` is the dedicated host-hardware command. Equivalent library path: `cdxgen -t hbom`. Do not mix it with other project types.                                                                                     |
-| **Output parsing**            | Use `-p` for human-readable tables. Parse JSON at `-o` path programmatically. Never assume stdout contains the BOM unless `-o` is omitted.                                                                            |
-| **Signature verification**    | Use bundled `cdx-verify -i bom.json --public-key public.key`.                                                                                                                                                         |
-| **SBOM signing**              | Use bundled `cdx-sign -i bom.json -k private.key`.                                                                                                                                                                    |
-| **Predictive auditing**       | Use bundled `cdx-audit --bom bom.json` for existing BOMs. Prefer `--report sarif --report-file audit.sarif` for code-scanning uploads.                                                                                |
-| **OBOM troubleshooting**      | For macOS permission/startup quirks, check `docs/OBOM_MACOS_TROUBLESHOOTING.md`; for live-host triage patterns, use `docs/OBOM_LESSONS.md`.                                                                           |
-| **Go data-flow review**       | Use `evinse -l go --deep` or `--with-data-flow --golem-dataflow crypto` for Golem data-flow. Keep worker/proc/slice limits bounded for CI and inspect `cdx:golem:dataFlow*` / `cdx:golem:cryptoDataFlow*` properties. |
+| Scenario                      | Recommended Action                                                                                                                                                                                                            |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Command fails silently**    | Check missing build tools, atom availability (native binary on most platforms; Java ≥ 23 only on darwin-amd64, windows-arm64, linux-arm64-musl), or secure mode restrictions. Suggest container image or `--no-install-deps`. |
+| **Network/registry timeouts** | Set `HTTP_PROXY`/`HTTPS_PROXY`; cdxgen's HTTP client honors them automatically. Do not auto-retry without user confirmation.                                                                                                  |
+| **Large mono-repos**          | Use `--no-recurse` + explicit `-t <lang>` or `--exclude-type` to limit scope.                                                                                                                                                 |
+| **Server mode invocation**    | Poll `/health` first. POST to `/sbom` with JSON body or query params. Pass `GITHUB_TOKEN` via env if scanning private repos.                                                                                                  |
+| **Aliases**                   | `obom` = `cdxgen -t os`<br>`cbom` = `cdxgen --include-crypto --evidence --deep` (spec version defaults to `1.7`). `cbom` rejects `--component-type` and `-t os`; use `obom` for OS inventory                                  |
+| **HBOM**                      | `hbom` is the dedicated host-hardware command. Equivalent library path: `cdxgen -t hbom`. Do not mix it with other project types.                                                                                             |
+| **Output parsing**            | Use `-p` for human-readable tables. Parse JSON at `-o` path programmatically. Never assume stdout contains the BOM unless `-o` is omitted.                                                                                    |
+| **Signature verification**    | Use bundled `cdx-verify -i bom.json --public-key public.key`.                                                                                                                                                                 |
+| **SBOM signing**              | Use bundled `cdx-sign -i bom.json -k private.key`.                                                                                                                                                                            |
+| **Predictive auditing**       | Use bundled `cdx-audit --bom bom.json` for existing BOMs. Prefer `--report sarif --report-file audit.sarif` for code-scanning uploads.                                                                                        |
+| **OBOM troubleshooting**      | For macOS permission/startup quirks, check `docs/OBOM_MACOS_TROUBLESHOOTING.md`; for live-host triage patterns, use `docs/OBOM_LESSONS.md`.                                                                                   |
+| **Go data-flow review**       | Use `evinse -l go --deep` or `--with-data-flow --golem-dataflow crypto` for Golem data-flow. Keep worker/proc/slice limits bounded for CI and inspect `cdx:golem:dataFlow*` / `cdx:golem:cryptoDataFlow*` properties.         |
 
 ### Dry-run-first workflow for agents
 

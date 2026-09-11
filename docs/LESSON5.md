@@ -9,7 +9,6 @@ This guide demonstrates how to generate various SBOMs for the OWASP [Juice Shop]
 Ensure the following tools are installed.
 
 ```
-Java >= 21
 Node.js >= 24  (to run cdxgen itself)
 ```
 

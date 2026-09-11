@@ -35,11 +35,15 @@ package manager. Never auto-enable it in CI, containers, or air-gapped
 environments. Use `--no-install-deps` or `--lifecycle pre-build` instead, and
 tell the user when a scan would otherwise install packages.
 
-## Java is a hard requirement for some scans
+## Java is only needed on jar-based atom platforms
 
-Java >= 21 is mandatory for C, C++, Python, and CBOM analysis. Lower versions
-cause **silent freezes or incomplete BOMs**, not error messages. Check
-`java -version` before blaming cdxgen for a hang or a thin BOM.
+C, C++, Python, and CBOM source analysis uses the atom companion, which ships
+as a native binary needing no JDK on linux-amd64, linux-arm64 (glibc),
+linux-amd64-musl, darwin-arm64, and windows-amd64. Only the jar-based triples
+(darwin-amd64, windows-arm64, linux-arm64-musl) require Java >= 23, and lower
+versions cause **silent freezes or incomplete BOMs**, not error messages. Check
+`java -version` on those platforms before blaming cdxgen for a hang or a thin
+BOM.
 
 ## Secure mode
 

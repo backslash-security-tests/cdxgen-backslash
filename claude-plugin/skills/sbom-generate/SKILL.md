@@ -176,8 +176,8 @@ Other output controls: `-p` / `--print` for a human-readable table or tree,
 
 | Symptom                    | First thing to check                                                                 |
 | -------------------------- | ------------------------------------------------------------------------------------ |
-| Hangs or exits with a thin BOM | `java -version`. Java >= 21 is mandatory for C/C++/Python/CBOM and fails silently below that. |
-| Registry or network timeouts | Set `HTTP_PROXY` / `HTTPS_PROXY`. Node >= 22.21 auto-detects. Do not auto-retry without asking. |
+| Hangs or exits with a thin BOM | Atom availability. Native-binary platforms need no JDK; on jar-based triples (darwin-amd64, windows-arm64, linux-arm64-musl) check `java -version` — Java >= 23 is required and fails silently below that. |
+| Registry or network timeouts | Set `HTTP_PROXY` / `HTTPS_PROXY`; cdxgen's HTTP client honors them automatically. Do not auto-retry without asking. |
 | Only direct dependencies   | The build tool could not resolve transitives. Run `--profile introspect` and follow `sbom-fidelity-loop`. |
 | Fails in CI or a container | `--install-deps` defaulted on. Use `--no-install-deps` or `--lifecycle pre-build`.   |
 | Missing build toolchain    | Suggest the container image, or a pinned type such as `-t java21`.                   |

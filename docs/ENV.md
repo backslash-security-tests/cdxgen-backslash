@@ -356,7 +356,7 @@ Used when resolving Hugging Face models, datasets, and spaces into AI-BOM compon
 
 ## Proxy and Network Configuration
 
-cdxgen automatically detects and configures proxy settings based on standard environment variables. This works natively with Node.js (v22.21+), Deno, and Bun.
+cdxgen automatically detects and configures proxy settings based on standard environment variables. This works natively with Node.js, Deno, and Bun.
 
 ### HTTP/HTTPS Proxy
 

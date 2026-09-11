@@ -165,10 +165,9 @@ cdxgen -r -o bom.json --spec-version 1.6
 cdx-convert -i bom.json -o bom-1.5.json --to 1.5
 ```
 
-To generate SBOM for C or Python, ensure Java >= 21 is installed.
+To generate SBOM for C or Python, cdxgen uses the bundled atom companion, which ships as a native binary needing no JDK on linux-amd64, linux-arm64 (glibc), linux-amd64-musl, darwin-arm64, and windows-amd64. Only the jar-based triples (darwin-amd64, windows-arm64, linux-arm64-musl) require Java >= 23.
 
 ```shell
-# Install java >= 21
 cdxgen -t c -o bom.json
 ```
 

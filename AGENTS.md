@@ -32,7 +32,7 @@ Companion binaries:
 ## Module system and runtime
 
 - The package is **pure ESM** (`"type": "module"` in `package.json`). There is no CommonJS source except the generated `index.cjs` shim.
-- The project targets **Node.js ≥ 20** with optional support for Bun and Deno (see `devEngines` in `package.json`).
+- The project targets **Node.js ≥ 24** with optional support for Bun and Deno (see `devEngines` in `package.json`).
 - Detect the runtime with the helpers exported from `lib/ecosystems/utils.js`:
   ```js
   export const isNode = globalThis.process?.versions?.node !== undefined;

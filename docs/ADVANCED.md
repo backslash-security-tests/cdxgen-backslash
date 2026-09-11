@@ -526,7 +526,7 @@ Evinse (Evinse Verification Is Nearly SBOM Evidence) generates component evidenc
 
 ### Pre-requisites
 
-- Java > 21 installed
+- The atom companion (native binary on most platforms; Java > 23 only on the jar-based darwin-amd64, windows-arm64, and linux-arm64-musl triples)
 - Application source code
 - Input SBOM in CycloneDX >1.5 format. Use cdxgen to generate one.
 
