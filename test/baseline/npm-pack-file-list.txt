@@ -109,6 +109,7 @@ lib/core/syncFileWriter.js
 lib/core/text.js
 lib/core/ui.js
 lib/core/urls.js
+lib/core/userAgent.js
 lib/ecosystems/asarutils.js
 lib/ecosystems/bunutils.js
 lib/ecosystems/caxa.js
@@ -379,6 +380,8 @@ types/lib/core/state.d.ts
 types/lib/core/state.d.ts.map
 types/lib/core/urls.d.ts
 types/lib/core/urls.d.ts.map
+types/lib/core/userAgent.d.ts
+types/lib/core/userAgent.d.ts.map
 types/lib/ecosystems/asarutils.d.ts
 types/lib/ecosystems/asarutils.d.ts.map
 types/lib/ecosystems/bunutils.d.ts
