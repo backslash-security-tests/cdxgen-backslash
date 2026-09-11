@@ -34,9 +34,9 @@ These variables are used either by cdxgen itself or by multiple scanners.
 | CDXGEN_TEMP_DIR                  | Specifies the parent temporary directory used for storing intermediate files during SBOM generation. The directory is automatically cleaned up after the process completes.                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | CDXGEN_THOUGHT_LOG               | To log cdxgen's internal thinking to a log file, set the environment variable `CDXGEN_THINK_MODE` and define `CDXGEN_THOUGHT_LOG` with the desired file path. Without `CDXGEN_THOUGHT_LOG`, cdxgen defaults to logging to `process.stdout`.                                                                                                                                                                                                                                                                                                                                                      |
 | CDXGEN_TRACE_LOG                 | To trace the external commands and remote hosts accessed by cdxgen to a log file, set the environment variable `CDXGEN_TRACE_MODE` and define `CDXGEN_TRACE_LOG` with the desired file path. Without `CDXGEN_TRACE_LOG`, cdxgen defaults to logging to `process.stdout`.                                                                                                                                                                                                                                                                                                                         |
-| CDXGEN_CONTACT_EMAIL             | Contact address carried in the default user-agent as `mailto=<address>`. Packagist asks API consumers to include one so they can reach you instead of blocking your IP; crates.io and PyPI recommend the same. Defaults to `cloud@appthreat.com`. Set your own address when running cdxgen at scale, so that a registry contacts you rather than the project.                                                                                                                                                                                                                                                                                                                    |
-| CDXGEN_USER_AGENT                | Replaces the `user-agent` header on every outbound request. Use this when a registry has asked you to identify your traffic differently. A blank value is ignored, since several registries reject an empty header outright.                                                                                                                                                                                                                                                                                                                                                                     |
-| CDXGEN_USER_AGENT_&lt;REGISTRY&gt;      | Replaces the `user-agent` for one registry only, taking precedence over `CDXGEN_USER_AGENT`. `<REGISTRY>` is one of `CRATES`, `DOCKER`, `GITHUB`, `GITLAB`, `GOPROXY`, `HUGGINGFACE`, `JSR`, `MAVEN`, `NPM`, `NUGET`, `PACKAGIST`, `PUB`, `PYPI`, `RUBYGEMS`. Note that crates.io blocks user-agents containing `curl`, `python-requests`, or `Go-http-client` at its CDN edge, with an empty-bodied 403.                                                                                                                                                                                        |
+| CDXGEN_CONTACT_EMAIL             | Contact address carried in the default user-agent as `mailto=<address>`. Defaults to the project's address; set your own when running cdxgen at any volume. See [User agent](#user-agent).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| CDXGEN_USER_AGENT                | Replaces the `user-agent` header on every outbound request. Blank values are ignored, since several registries reject an empty header. See [User agent](#user-agent).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| CDXGEN_USER_AGENT_&lt;REGISTRY&gt; | Replaces the `user-agent` for one registry only, taking precedence over `CDXGEN_USER_AGENT`. See [User agent](#user-agent) for the registry keys and the hosts each covers.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | CDXGEN_TIMEOUT_MS                | Default timeout for known execution involving maven, gradle or sbt                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | FETCH_LICENSE                    | Set this variable to `true` or `1` to fetch license information from the registry. npm and golang                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | CDXGEN_PARENT_EDGE_REPAIR        | Set to `false` to stop cdxgen from attaching the roots of the dependency graph to the parent component when no leg emitted that edge. Defaults to `true`.                                                                                                                                                                                                                                                                                                                                                                                                                                        |
@@ -375,3 +375,51 @@ cdxgen automatically enables `NODE_USE_SYSTEM_CA`, allowing it to trust Custom C
 ```
 export NODE_EXTRA_CA_CERTS="/path/to/enterprise-ca.pem"
 ```
+
+### User agent
+
+Package registries police automated traffic through the `user-agent` header, and they do not agree on what it should contain. GitHub rejects a request without one; crates.io rejects a request without one and additionally blocks a list of strings at its CDN edge; Packagist asks for a `mailto=` contact so an operator can reach you rather than block your IP; PyPI asks for a value that uniquely identifies the consumer. cdxgen sends one value that satisfies all of them:
+
+```
+cdxgen/<version> (+https://github.com/cdxgen/cdxgen; mailto=cloud@appthreat.com)
+```
+
+Set `CDXGEN_CONTACT_EMAIL` to put your own address in place of the project's. Do this whenever you run cdxgen at any volume: the address is how a registry reaches the party generating the traffic, and that should be you rather than the cdxgen maintainers.
+
+```
+export CDXGEN_CONTACT_EMAIL="build-team@example.org"
+```
+
+To replace the header outright, set `CDXGEN_USER_AGENT`. To replace it for a single registry, set `CDXGEN_USER_AGENT_<REGISTRY>`, which takes precedence over the global variable for that registry's hosts. Resolution is per request and host-aware: the registry override wins, then the global override, then the default. A blank or whitespace-only value is ignored rather than honoured, because several registries reject an empty header outright.
+
+```
+# identify all traffic as an internal mirror, except to crates.io
+export CDXGEN_USER_AGENT="acme-sbom-bot/2.1 (+https://wiki.example.org/sbom)"
+export CDXGEN_USER_AGENT_CRATES="acme-sbom-bot/2.1 (build-team@example.org)"
+```
+
+`<REGISTRY>` is one of the following. A host matches its entry exactly or as a subdomain of it, so `files.pythonhosted.org` resolves to `PYPI`; a lookalike such as `crates.io.example.org` matches nothing and receives the default.
+
+| Registry key  | Hosts                                                                                             |
+| ------------- | ------------------------------------------------------------------------------------------------- |
+| `CRATES`      | `crates.io`, `static.crates.io`, `index.crates.io`                                                |
+| `DOCKER`      | `docker.io`, `docker.com`                                                                          |
+| `GITHUB`      | `github.com`, `githubusercontent.com`, `ghcr.io`                                                  |
+| `GITLAB`      | `gitlab.com`                                                                                       |
+| `GOPROXY`     | `proxy.golang.org`, `sum.golang.org`, `pkg.go.dev`                                                |
+| `HUGGINGFACE` | `huggingface.co`                                                                                   |
+| `JSR`         | `jsr.io`                                                                                           |
+| `MAVEN`       | `repo1.maven.org`, `repo.maven.apache.org`, `search.maven.org`, `central.sonatype.com`, `oss.sonatype.org` |
+| `NPM`         | `registry.npmjs.org`, `npmjs.org`, `npmjs.com`                                                    |
+| `NUGET`       | `nuget.org`                                                                                        |
+| `PACKAGIST`   | `packagist.org`                                                                                    |
+| `PUB`         | `pub.dev`                                                                                          |
+| `PYPI`        | `pypi.org`, `pythonhosted.org`                                                                     |
+| `RUBYGEMS`    | `rubygems.org`                                                                                     |
+
+Two constraints apply to any value you choose:
+
+- crates.io blocks user-agents containing `curl`, `python-requests`, or `Go-http-client` anywhere in the string, and answers with an empty-bodied 403 that is indistinguishable from any other 403. It also blocks specific strings by prefix, which is why the default does not use the `@scope/name` npm spelling.
+- Sonatype treats impersonating another client, such as `Apache-Maven` or `npm`, as user-agent spoofing, and says that evasion attempts "will result in escalated enforcement" against Maven Central traffic. Identify your own tool instead.
+
+Note that outside crates.io and GitHub, registries throttle on request volume and source IP rather than on this header, so a 403 or 429 from Maven Central, RubyGems, or npm is unlikely to be fixed by changing the user-agent.
