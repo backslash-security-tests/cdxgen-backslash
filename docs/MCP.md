@@ -24,20 +24,37 @@ For high-confidence JavaScript MCP patterns, cdxgen emits:
 
 ## Current detection scope
 
-- official and non-official MCP SDK imports
-- `McpServer`-style server construction
+- official and non-official MCP SDK imports, including the split
+  `@modelcontextprotocol/server` and `@modelcontextprotocol/client` packages
+- `McpServer`-style server construction and the stateless `createMcpHandler` factory
 - `Client`-style MCP client construction
-- stdio and Streamable HTTP transports
+- stdio, Streamable HTTP, SSE, and the web-standards Streamable HTTP transports
 - MCP tool / prompt / resource registration calls
 - prompt / tool / resource client usage call sites
 - explicit capability declarations
 - authentication helpers for HTTP MCP servers
 - OAuth metadata literals and MCP auth-discovery wiring
 - explicit provider and model literals such as `provider`, `providerName`, `model`, and `modelName`
-- provider SDK imports, outbound provider hosts, and MCP gateway patterns
+- provider SDK imports, outbound provider hosts, and MCP gateway patterns for a wide
+  provider set (OpenAI, Anthropic, Google, Azure OpenAI, Mistral, Cohere, DeepSeek,
+  Groq, xAI/Grok, AWS Bedrock, OpenRouter, Cerebras, DashScope/Qwen, NVIDIA NIM, and more)
 - AI agent instruction files that reference hidden MCP endpoints or wrappers
-- MCP client configuration files such as `.vscode/mcp.json`, `.mcp.json`, `claude_desktop_config.json`, and `opencode.json`
+- MCP client configuration files such as `.vscode/mcp.json`, `.cursor/mcp.json`,
+  `.mcp.json`, `claude_desktop_config.json`, `opencode.json`, `.gemini/settings.json`,
+  `.windsurf/mcp_config.json`, `.zed/settings.json`, `.roo/mcp.json`, and the Codex CLI
+  `.codex/config.toml` (`[mcp_servers.*]` TOML tables)
+- MCP Registry `server.json` manifests, resolving declared distributable packages to
+  purls and separating registry-hosted remotes (marked `composition=unknown`)
+- MCPB / DXT desktop-extension bundles (`.mcpb`, `.dxt`), summarizing the bundled server,
+  its tools/prompts, declared user-configuration fields, and whether it injects secret
+  configuration as environment variables
+- MCP 2026-07-28 protocol signals: an explicitly pinned protocol version, deprecated
+  features (legacy SSE transport, dynamic client registration, sampling, logging, roots),
+  and hardened authorization signals (Client ID Metadata Documents, audience-bound tokens)
 - community agent tooling layouts such as OpenCode (`opencode.json`, `.opencode/agents`, `.opencode/tools`, `.opencode/skills`), Nanocoder (`.mcp.json`, `.nanocoder/agents`, `.nanocoder/commands`), LangGraph (`langgraph.json`), and common CrewAI project files (`agents.py`, `tasks.py`, `config/agents.yaml`, `config/tasks.yaml`)
+- the open Agent Skills standard (`skills/<name>/SKILL.md`) and `.codex/skills`, plus Claude
+  Code plugins (`.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`) and
+  subagents (`.claude/agents`)
 - config-derived auth posture, trust profile, dynamic client registration, and inline credential exposure
 
 The analysis is intentionally conservative. cdxgen prefers literal, explainable signals over speculative reconstruction.
@@ -53,8 +70,12 @@ The analysis is intentionally conservative. cdxgen prefers literal, explainable 
 
 ### MCP server and configured services
 
-- `cdx:mcp:serviceType=server|client|gateway|endpoint|inferred-endpoint|configured-server`
-- `cdx:mcp:transport=stdio|streamable-http|sse`
+- `cdx:mcp:serviceType=server|client|gateway|endpoint|inferred-endpoint|configured-server|registry-remote`
+- `cdx:mcp:transport=stdio|streamable-http|sse|websocket`
+- `cdx:mcp:protocolVersion` (e.g. `2026-07-28`)
+- `cdx:mcp:deprecatedFeatures` (comma-separated: `sse-transport`, `dynamic-client-registration`, `sampling`, `logging`, `roots`)
+- `cdx:mcp:composition=unknown` (registry remotes with no resolvable local package)
+- `cdx:mcp:auth:cimd` and `cdx:mcp:auth:audienceBound` (hardened MCP authorization signals)
 - `cdx:mcp:officialSdk=true|false`
 - `cdx:mcp:capabilities:*`
 - `cdx:mcp:toolCount`
@@ -111,6 +132,34 @@ The analysis is intentionally conservative. cdxgen prefers literal, explainable 
 - `cdx:langgraph:graphEntryPoint`
 - `cdx:crewai:*`
 
+### MCP Registry manifest components
+
+For `server.json` manifests, cdxgen emits a file component
+(`cdx:file:kind=mcp-server-manifest`) plus one component per declared
+distributable package and one service per remote endpoint:
+
+- `cdx:registry:server:name`, `cdx:registry:server:version`
+- `cdx:registry:server:packageCount`, `cdx:registry:server:remoteCount`
+- `cdx:registry:server:packageRegistryType=npm|pypi|nuget|oci|mcpb`
+- `cdx:registry:server:packageTransport`
+
+### MCPB / DXT bundle components
+
+For `.mcpb` / `.dxt` bundles, cdxgen reads only the embedded `manifest.json`:
+
+- `cdx:file:kind=mcp-bundle`
+- `cdx:mcpb:manifestVersion`, `cdx:mcpb:serverType`
+- `cdx:mcpb:toolCount`, `cdx:mcpb:promptCount`
+- `cdx:mcpb:userConfigFieldCount`, `cdx:mcpb:secretFieldCount`, `cdx:mcpb:injectsSecretEnv`
+- `cdx:mcpb:platformBinaryCount`
+
+### Claude Code plugin and subagent components
+
+- `cdx:file:kind=agent-plugin|agent-plugin-listing`
+- `cdx:plugin:description`, `cdx:plugin:author`
+- `cdx:plugin:commandCount`, `cdx:plugin:agentCount`, `cdx:plugin:skillCount`, `cdx:plugin:hookCount`, `cdx:plugin:mcpServerCount`
+- `cdx:skill:specValid`, `cdx:skill:hasScripts`, `cdx:skill:hasReferences`, `cdx:skill:hasAssets`
+
 ## Example
 
 ```bash
@@ -140,6 +189,8 @@ The most important current security checks are:
 - hidden Unicode in AI agent instruction and skill files
 - agent-file MCP references that are not otherwise declared in package or source inventory
 - build/post-build BOMs that contain shipped MCP configs or AI instruction/skill files
+- configurations still relying on features deprecated by the MCP 2026-07-28 spec (MCP-009)
+- MCPB/DXT bundles that inject secret configuration as environment variables (MCP-010)
 
 ## Recommended release-review commands
 

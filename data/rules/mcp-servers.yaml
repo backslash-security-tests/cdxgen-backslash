@@ -386,3 +386,125 @@
       "configuredServiceCount": $prop($, 'cdx:mcp:configuredServiceCount'),
       "configuredServiceNames": $prop($, 'cdx:mcp:configuredServiceNames')
     }
+
+- id: MCP-009
+  name: "MCP configuration relies on deprecated protocol features"
+  description: "The MCP 2026-07-28 specification deprecates the legacy HTTP+SSE transport, dynamic client registration, sampling, logging, and roots. Configurations that still depend on these features need a migration plan before the deprecation window closes."
+  severity: medium
+  category: mcp-server
+  dry-run-support: full
+  standards:
+    owasp-ai-top-10:
+      - "LLM05: Supply Chain Vulnerabilities"
+      - "LLM03:2025 Supply Chain"
+    owasp-agentic-top-10-2026:
+      - "Agentic Supply Chain"
+    eu-ai-act:
+      - "Technical documentation and traceability"
+    eu-cra:
+      - "Technical documentation for software components"
+    nist-ai-rmf:
+      - "Govern"
+      - "Map"
+    nist-ssdf:
+      - "Plan migration away from deprecated protocol features"
+  condition: |
+    $auditServices($)[
+      $nullSafeProp($, 'cdx:mcp:deprecatedFeatures') != ''
+    ]
+  location: |
+    {
+      "bomRef": $."bom-ref",
+      "file": $prop($, 'internal:SrcFile')
+    }
+  message: "MCP service '{{ name }}' uses deprecated protocol features"
+  mitigation: "Migrate off legacy SSE transport, dynamic client registration, sampling, logging, and roots to the MCP 2026-07-28 replacements within the deprecation window."
+  evidence: |
+    {
+      "protocolVersion": $prop($, 'cdx:mcp:protocolVersion'),
+      "deprecatedFeatures": $prop($, 'cdx:mcp:deprecatedFeatures'),
+      "transport": $prop($, 'cdx:mcp:transport')
+    }
+
+- id: MCP-010
+  name: "MCP bundle declares secret configuration fields"
+  description: "MCPB/DXT bundles that declare secret-typed user_config fields have those values injected into the bundled server's environment on launch. Declaring such a field is the correct way to build a bundle, so this is an inventory disclosure to aid credential-handling review rather than a defect."
+  severity: low
+  category: mcp-server
+  dry-run-support: full
+  standards:
+    owasp-ai-top-10:
+      - "LLM05: Supply Chain Vulnerabilities"
+      - "LLM03:2025 Supply Chain"
+    owasp-agentic-top-10-2026:
+      - "Agentic Supply Chain"
+    eu-ai-act:
+      - "Technical documentation and traceability"
+    eu-cra:
+      - "Software supply chain visibility"
+    nist-ai-rmf:
+      - "Govern"
+    nist-ssdf:
+      - "Review secret handling in installable AI extensions"
+  condition: |
+    components[
+      $prop($, 'cdx:file:kind') = 'mcp-bundle'
+      and $prop($, 'cdx:mcpb:injectsSecretEnv') = 'true'
+    ]
+  location: |
+    {
+      "bomRef": $."bom-ref",
+      "file": $prop($, 'internal:SrcFile')
+    }
+  message: "MCP bundle '{{ name }}' declares secret configuration fields injected as environment variables"
+  mitigation: "Review the declared secret fields and prefer runtime secret stores or references over values captured through the extension manifest."
+  evidence: |
+    {
+      "serverType": $prop($, 'cdx:mcpb:serverType'),
+      "secretFieldCount": $prop($, 'cdx:mcpb:secretFieldCount'),
+      "platformBinaryCount": $prop($, 'cdx:mcpb:platformBinaryCount')
+    }
+
+- id: MCP-011
+  name: "MCP bundle ships precompiled platform binaries"
+  description: "MCPB/DXT bundles that ship precompiled per-platform binaries execute vendor-provided native code on the host with no build-from-source step. These binaries deserve provenance and signing review before a bundle is installed."
+  severity: medium
+  category: mcp-server
+  dry-run-support: full
+  attack:
+    tactics: [TA0002]
+    techniques: [T1195.002]
+  standards:
+    owasp-ai-top-10:
+      - "LLM05: Supply Chain Vulnerabilities"
+      - "LLM03:2025 Supply Chain"
+    owasp-agentic-top-10-2026:
+      - "Agentic Supply Chain"
+    eu-ai-act:
+      - "Technical documentation and traceability"
+      - "Accuracy, robustness and cybersecurity"
+    eu-cra:
+      - "Software supply chain visibility"
+      - "Protection against untrusted code execution"
+    nist-ai-rmf:
+      - "Map"
+      - "Manage"
+    nist-ssdf:
+      - "Verify provenance of precompiled binaries before execution"
+  condition: |
+    components[
+      $prop($, 'cdx:file:kind') = 'mcp-bundle'
+      and $number($nullSafeProp($, 'cdx:mcpb:platformBinaryCount')) > 0
+    ]
+  location: |
+    {
+      "bomRef": $."bom-ref",
+      "file": $prop($, 'internal:SrcFile')
+    }
+  message: "MCP bundle '{{ name }}' ships precompiled platform binaries"
+  mitigation: "Verify the provenance and signatures of the bundled platform binaries, or prefer a bundle that builds from source, before installing."
+  evidence: |
+    {
+      "serverType": $prop($, 'cdx:mcpb:serverType'),
+      "platformBinaryCount": $prop($, 'cdx:mcpb:platformBinaryCount')
+    }

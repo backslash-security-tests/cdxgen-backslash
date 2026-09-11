@@ -9,10 +9,18 @@ When `--include-formulation` is enabled, cdxgen emits this AI and agentic invent
 cdxgen can already emit AI-related evidence in standard CycloneDX documents, including:
 
 - AI inference services discovered from source or config
-- model components and local model artifacts
+- model components and local model artifacts, including GGUF, safetensors, ONNX, and
+  PyTorch pickle (`.bin`/`.pt`/`.pth`/`.ckpt`) checkpoints
+- agent frameworks and SDKs such as LangChain/LangGraph, LlamaIndex, the Vercel AI SDK,
+  the Claude Agent SDK, Google ADK, Pydantic AI, AWS Strands, Agno, the Microsoft Agent
+  Framework, Semantic Kernel, smolagents, DSPy, and CrewAI
+- inference providers spanning OpenAI, Anthropic, Google, Azure OpenAI, Mistral, Cohere,
+  DeepSeek, Groq, xAI/Grok, AWS Bedrock, OpenRouter, Cerebras, DashScope/Qwen, NVIDIA NIM,
+  and local runtimes
 - prompt and model-routing config files
-- AI agent instruction files and skill files
-- MCP configs and discovered MCP services
+- AI agent instruction files and skill files, including the open Agent Skills standard
+- MCP configs, discovered MCP services, MCP Registry `server.json` manifests, and
+  MCPB/DXT bundles
 
 For Hugging Face model repositories, cdxgen uses Hugging Face Package-URL `pkg:huggingface/<namespace>/<name>@<revision>` identifiers when a compliant model repository reference is available.
 
@@ -175,11 +183,28 @@ As with GGUF, cdxgen intentionally avoids copying raw high-entropy or reviewer-h
 ### Security
 
 - remote AI endpoints using insecure HTTP transport
+- model artifacts that load via unsafe pickle deserialization (`.bin`/`.pt`/`.pth`/`.ckpt`)
 
 ### Performance
 
 - local AI models with very large context windows
 - large local AI models missing quantization metadata
+
+## Local model artifact formats
+
+When AI-BOM scans local model files, cdxgen recognizes several formats and records
+format-appropriate metadata without loading tensors or executing model code:
+
+- **GGUF** — full metadata parse (architecture, quantization, tokenizer signals, base-model
+  pedigree). See the GGUF section below.
+- **safetensors** — reads the JSON header to summarize tensor count, dtypes, and parameter
+  totals (`cdx:safetensors:*`), and derives a quantization method when present.
+- **ONNX** — recognized as a model artifact by extension.
+- **PyTorch pickle** (`.bin`/`.pt`/`.pth`/`.ckpt`) — inventoried and flagged with
+  `cdx:ai:unsafeDeserialization=true` because loading a pickle checkpoint executes code.
+
+Non-GGUF quantization methods (GPTQ, AWQ, EXL2, bitsandbytes, and similar) are recorded as
+`cdx:ai:quantizationMethod`, separate from the container format and the GGUF encoding.
 
 ## Recommended workflow
 
@@ -206,4 +231,5 @@ The AI, agent, and MCP rule packs now include guidance mappings for:
 - [BOM Audit](BOM_AUDIT.md)
 - [cdx-audit](CDX_AUDIT.md)
 - [MCP Inventory](MCP.md)
+- [Agentic CLI tool inventory](AGENTIC_INVENTORY.md)
 - [Tutorial: AI-BOM governance and audit](LESSON15.md)
