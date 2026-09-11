@@ -1,7 +1,3 @@
-# The packaging baseline is compared line-by-line against `npm pack` output.
-# A CRLF checkout would put a trailing \r on every entry.
-test/baseline/*.txt text eol=lf
-
 # The introspection goldens are compared byte-for-byte against renderer output,
 # which emits \n on every platform, so a CRLF checkout would fail every row.
 test/data/introspection/** text eol=lf
